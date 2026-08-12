@@ -65,11 +65,64 @@
   html {
     scroll-behavior: smooth;
   }
+  /**
+   * Fundo em três camadas. A cor de base fica no html para que a aurora, num
+   * z-index negativo, possa pintar acima dela e abaixo do conteúdo.
+   */
+  html {
+    background-color: var(--color-bg);
+  }
+
   body {
-    background: var(--color-bg);
+    background-color: transparent;
+    /* grão sobre a aurora: o que separa "cinza chapado" de "papel" */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    background-size: 180px 180px;
+    background-attachment: fixed;
     color: var(--color-fg);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+  }
+
+  /**
+   * Aurora numa camada própria, animada por `transform` — a GPU compõe sem
+   * repintar. Animar `background-position` daria o mesmo efeito visual e
+   * repintaria a viewport inteira a cada frame, brigando com o scroll.
+   * O `inset` negativo dá folga para a escala não expor a borda.
+   */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: -25%;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      radial-gradient(
+        34% 30% at 20% 22%,
+        rgba(14, 148, 128, 0.16),
+        transparent 70%
+      ),
+      radial-gradient(
+        30% 27% at 78% 26%,
+        rgba(124, 58, 237, 0.13),
+        transparent 72%
+      ),
+      radial-gradient(
+        28% 24% at 52% 62%,
+        rgba(161, 98, 7, 0.07),
+        transparent 74%
+      );
+    animation: aurora 48s ease-in-out infinite alternate;
+    will-change: transform;
+  }
+
+  @keyframes aurora {
+    from {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    to {
+      transform: translate3d(-5%, 4%, 0) scale(1.14);
+    }
   }
   ::selection {
     background: rgba(11, 124, 105, 0.16);
