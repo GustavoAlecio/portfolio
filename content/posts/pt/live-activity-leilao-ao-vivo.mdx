@@ -1,6 +1,6 @@
 ---
 title: "Live Activity ao vivo: o que quebra e por quê"
-summary: Oito problemas que só aparecem depois que a Live Activity está no aparelho de alguém — congelamento por estado parcial, idioma que não acompanha o app, corrida no token e relógio que não pode depender de push.
+summary: "Oito problemas que só aparecem depois que a Live Activity está no aparelho de alguém: congelamento por estado parcial, idioma que não acompanha o app, corrida no token e relógio que não pode depender de push."
 publishedAt: "2026-05-19"
 category: flutter
 tags:
@@ -18,8 +18,8 @@ depois, num aparelho real, com dado real chegando fora de ordem.
 
 Passei alguns meses construindo Live Activities de acompanhamento em tempo real, e
 este é o inventário do que quebrou. Vou usar **um leilão ao vivo** como exemplo ao
-longo do texto — não porque seja o app em que trabalhei, mas porque ele exercita
-todas as partes difíceis de uma vez: contagem regressiva que ganha prorrogação,
+longo do texto. Não porque seja o app em que trabalhei, mas porque ele exercita todas
+as partes difíceis de uma vez: contagem regressiva que ganha prorrogação,
 posição do usuário entre os licitantes, lance chegando fora de ordem e uma foto de
 item que precisa aparecer numa extension.
 
@@ -35,15 +35,15 @@ econômica. Atributo é imutável depois do `request()`; content-state viaja em
 
 Coloque o título do item no content-state e cada atualização de lance carrega o
 título do item. Parece inofensivo até o payload crescer e você descobrir que o
-orçamento de tamanho de um push de Live Activity é apertado — e que campo imutável
+orçamento de tamanho de um push de Live Activity é apertado. E campo imutável
 ocupando espaço em atualização de alta frequência é desperdício que cobra caro na
 hora errada, quando o leilão está fechando e a atualização é a única coisa que
 importa.
 
 ## Estado parcial congela a tela
 
-Este foi o pior. O servidor manda um content-state incompleto — um campo a menos,
-um `null` inesperado — e a Live Activity simplesmente **para de atualizar**. Não
+Este foi o pior. O servidor manda um content-state incompleto, com um campo a
+menos ou um `null` inesperado, e a Live Activity simplesmente **para de atualizar**. Não
 mostra erro, não cai, não some. Congela no último estado válido, e o usuário fica
 olhando um lance que já foi superado.
 
@@ -90,8 +90,8 @@ ou está certa ou está mentindo.
 ## O widget não fala o idioma do app
 
 Se o usuário escolhe idioma dentro do app, a widget extension não sabe disso. Ela
-é outro processo, com o próprio bundle e a própria resolução de locale — ela segue
-o idioma do sistema, não o seu.
+é outro processo, com o próprio bundle e a própria resolução de locale. Ela segue o
+idioma do sistema, não o seu.
 
 O caminho que funcionou foi o app escrever a escolha num arquivo dentro do App
 Group container, e o widget ler de lá antes de formatar qualquer coisa:
@@ -102,7 +102,7 @@ let group = FileManager.default.containerURL(
 )
 ```
 
-Vale para tudo que é texto e para tudo que é número formatado — moeda inclusive.
+Vale para tudo que é texto e para tudo que é número formatado, moeda inclusive.
 Descobri isso na ordem errada: traduzindo caso por caso, achando que era bug de
 string, até perceber que era bug de arquitetura.
 
@@ -114,8 +114,8 @@ aqui.
 
 A primeira é corrida: o token pode chegar antes do registro terminar, ou dois
 tokens podem chegar quase juntos. Serializar a mutação desse estado na main e
-**chavear o replay por `activityId`**, não pelo id do leilão, resolve — porque o
-mesmo leilão pode ter mais de uma activity ao longo do dia.
+**chavear o replay por `activityId`**, não pelo id do leilão, resolve. O mesmo
+leilão pode ter mais de uma activity ao longo do dia.
 
 A segunda é que o token da activity não substitui o token do aparelho. Você precisa
 dos dois: um endereça a Live Activity, o outro identifica quem é o usuário do outro
@@ -143,8 +143,8 @@ não quer saber da sua flag.
 ## Detalhes que só aparecem no aparelho
 
 - **Imagem em extension não é imagem no app.** Foto que carrega lisa na lista do
-  app não carrega na Live Activity — a extension tem outro ciclo de vida e
-  orçamento. Precisou de pré-cache do lado do app, gravando no App Group antes de a
+  app não carrega na Live Activity, porque a extension tem outro ciclo de vida
+  e orçamento. Precisou de pré-cache do lado do app, gravando no App Group antes de a
   activity precisar.
 - **O Watch cai na família `.small`.** É o mesmo layout que você já tratou
   como caso pequeno, e é onde título longo destrói a composição. Quebra de linha e
@@ -152,7 +152,7 @@ não quer saber da sua flag.
 - **Nome de usuário é imprevisível.** Linha de evento com nome completo estoura;
   abreviar é regra, não exceção.
 - **Encerrar é parte do ciclo de vida.** Se o usuário sai da tela, a activity
-  precisa terminar. Sem isso ela fica na tela de bloqueio depois de perder sentido —
+  precisa terminar. Sem isso ela fica na tela de bloqueio depois de perder sentido,
   e Live Activity zumbi é pior que Live Activity nenhuma.
 - **Tap precisa levar a algum lugar.** Deep link roteando para aquele item
   específico, não para a home.
@@ -160,7 +160,7 @@ não quer saber da sua flag.
 ## O que eu faria diferente
 
 Começaria pelo estado, não pela UI. Passei tempo ajustando layout de tela de
-bloqueio antes de ter o modelo de dados tolerante — e todo bug sério que apareceu
+bloqueio antes de ter o modelo de dados tolerante, e todo bug sério que apareceu
 depois era de estado, não de composição. Live Activity é, essencialmente, um
 problema de sincronização com uma tela pequena em cima.
 

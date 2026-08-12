@@ -13,12 +13,12 @@ draft: false
 
 Toda conversa sobre segurança de app mobile começa em ofuscação e para ali. É a
 medida mais fácil de ligar, a mais fácil de demonstrar pra gestão e a que menos
-protege — porque ofuscação não impede nada, apenas encarece.
+protege, porque ofuscação não impede nada, apenas encarece.
 
 A premissa que organiza o resto é desconfortável: **o app roda em território
 hostil**. O aparelho é do usuário, o binário é inspecionável, o tráfego é
 interceptável com meia hora de trabalho, e tudo que o app sabe, quem quer saber
-descobre. A pergunta útil não é "como esconder" — é "o que o servidor precisa
+descobre. A pergunta útil não é "como esconder". É "o que o servidor precisa
 verificar por conta própria".
 
 Vou usar o mesmo app de leilão dos artigos anteriores como exemplo. Se o usuário
@@ -33,7 +33,7 @@ lista de endereços.
 
 O par obrigatório é: ofusca, guarda o mapa de símbolos como artefato da release, e
 **escreve o procedimento de desofuscação antes de precisar dele**. Não em
-documentação genérica — um runbook com o comando exato, onde baixar o mapa daquela
+documentação genérica: um runbook com o comando exato, onde baixar o mapa daquela
 versão, e o que fazer quando o mapa não bate porque alguém rebuildou.
 
 Escrevi esse runbook depois da primeira vez que precisei. A segunda vez levou
@@ -43,13 +43,13 @@ cinco minutos em vez de uma tarde.
 
 Aqui tem uma confusão que pega quem vem do Flutter: **o R8 não mexe no seu Dart**.
 Dart de release é compilado AOT e sai do alcance dele. O que o R8 minifica e
-encurta é o lado Android — plugin, SDK nativo, código Kotlin e Java que entrou por
+encurta é o lado Android: plugin, SDK nativo, código Kotlin e Java que entrou por
 dependência. É justamente por isso que a quebra surpreende: você não escreveu
 aquele código e não desconfia dele.
 
 E o sintoma nunca é erro de compilação. É `ClassNotFoundException` em produção, só
-no build de release, só naquele fluxo — porque o SDK resolve a classe pelo nome, em
-tempo de execução, e o nome já não existe.
+no build de release, só naquele fluxo. O SDK resolve a classe pelo nome, em tempo de
+execução, e o nome já não existe.
 
 A correção é uma regra de `keep`, e a armadilha é o arquivo de regras virar
 depósito:
@@ -63,12 +63,12 @@ depósito:
 
 Cada `keep` sem comentário é uma decisão que ninguém vai conseguir reverter depois,
 porque nenhum futuro colega vai ter coragem de apagar uma linha cuja razão de
-existir é desconhecida. O comentário não é documentação — é permissão para remover
-mais tarde.
+existir é desconhecida. O comentário não é documentação. É permissão para remover mais
+tarde.
 
 ## Pinning é fácil de fazer e fácil de virar bomba
 
-Pinning de certificado por SPKI, aplicado no cliente REST e também no WebSocket —
+Pinning de certificado por SPKI, aplicado no cliente REST e também no WebSocket,
 que é a parte que as pessoas esquecem, porque o socket costuma ter cliente próprio
 e escapa da configuração do HTTP:
 
@@ -86,7 +86,7 @@ incidente:
 
 **Pin de reserva.** Se você fixa uma única chave e ela rotaciona, todo app
 instalado perde acesso ao servidor de uma vez, e a correção exige nova versão na
-loja — dias, no melhor caso.
+loja, o que leva dias no melhor caso.
 
 **Dono e alerta.** Pinning é a única medida de segurança que **transforma erro de
 operação em app inutilizável**. Então ela precisa de nome de pessoa responsável e
@@ -100,8 +100,8 @@ tema, e eu tomei ela tarde.
 
 Ofuscação encarece; atestação é o que de fato responde "esse pedido veio do meu
 app, num aparelho não adulterado". Play Integrity no Android e App Attest no iOS
-geram um token que o servidor valida por conta própria — o controle sai do cliente,
-que é o ponto.
+geram um token que o servidor valida por conta própria. O controle sai do cliente, e
+esse é o ponto.
 
 E é aqui que a maioria erra por excesso. Atestar tudo custa latência, quota e
 suporte, e a maior parte das rotas não merece:
@@ -111,14 +111,14 @@ suporte, e a maior parte das rotas não merece:
   de configuração não é superfície de fraude, e atestá-lo só adiciona um jeito novo
   de o app não abrir.
 
-Eu comecei com uma lista maior e cortei — tirei fluxo social e login-com-terceiro
+Eu comecei com uma lista maior e cortei. Tirei fluxo social e login-com-terceiro
 depois de perceber que eram, na prática, leitura de configuração; tirei operações
 administrativas que já tinham controle no servidor.
 
 E tem um detalhe de compatibilidade que só aparece em aparelho antigo: **App Attest
 exige iOS 14**. Se seu app suporta iOS 13, você precisa de caminho degradado
-definido — o que significa decidir, explicitamente, o que fazer com um aparelho que
-não consegue atestar. Bloquear? Permitir com limite? Essa é decisão de produto, não
+definido, o que significa decidir explicitamente o que fazer com um aparelho que não
+consegue atestar. Bloquear? Permitir com limite? Essa é decisão de produto, não
 de engenharia, e alguém precisa assiná-la.
 
 ## Contrato de env em vez de desversionar arquivo
@@ -136,7 +136,7 @@ O que funcionou melhor foi separar as duas coisas:
   ambiente local de cada um.
 
 E vale lembrar: chave que já esteve num commit está comprometida para sempre.
-Rotacione, não apenas remova — o histórico do git não esquece. Eu também tive que
+Rotacione, não apenas remova. O histórico do git não esquece. Eu também tive que
 limpar chave que tinha vazado para dentro de **documentação**, que é o lugar onde
 ninguém procura.
 
@@ -152,21 +152,21 @@ morta.
 
 Cada permissão declarada é superfície de ataque, motivo de recusa em revisão de
 loja e linha na tela de privacidade. E no iOS, texto de justificativa vago é
-rejeição — escrever bem essas strings é trabalho de segurança e de aprovação ao
-mesmo tempo.
+rejeição. Escrever bem essas strings é trabalho de segurança e de aprovação ao mesmo
+tempo.
 
 Mesmo raciocínio para conteúdo sensível em tela: em telas que mostram dado
 financeiro do usuário, ocultar o conteúdo quando o sistema sinaliza captura de tela
-é barato e evita o vazamento mais banal que existe — o print compartilhado em grupo.
+é barato e evita o vazamento mais banal que existe: o print compartilhado em grupo.
 
 ## O que eu faria diferente
 
 Teria começado pela pergunta do servidor. Passei tempo em medidas do lado do
-cliente — ofuscar, esconder, dificultar — antes de listar o que o backend precisa
-verificar sozinho. A lista do servidor é curta e é a que realmente importa: se o
+cliente, ofuscando e escondendo, antes de listar o que o backend precisa verificar
+sozinho. A lista do servidor é curta e é a que realmente importa: se o
 servidor confia no cliente, nenhuma camada no cliente conserta isso.
 
 E teria definido dono para cada medida no dia em que ela subiu. Pinning, atestação
 e App Check são coisas que quebram com o tempo, por rotação de chave ou mudança de
-política de plataforma — e medida de segurança sem responsável é dívida com data de
+política de plataforma. E medida de segurança sem responsável é dívida com data de
 vencimento desconhecida.

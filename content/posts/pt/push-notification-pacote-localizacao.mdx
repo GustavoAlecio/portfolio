@@ -1,6 +1,6 @@
 ---
 title: "Push notification em pacote próprio: driver por plataforma e o idioma que o servidor não sabe"
-summary: Por que push não se resolve no Dart, como isolar notificação num pacote com driver por plataforma e um driver falso, e o problema que ninguém avisa — traduzir a notificação para o idioma que o usuário escolheu no app, não o do sistema.
+summary: "Por que push não se resolve no Dart, como isolar notificação num pacote com driver por plataforma e um driver falso, e o problema que ninguém avisa: traduzir a notificação para o idioma que o usuário escolheu no app, e não o do sistema."
 publishedAt: "2026-06-30"
 category: arquitetura
 tags:
@@ -13,12 +13,12 @@ draft: false
 
 Push notification parece uma feature e é uma fronteira. Ela começa num servidor,
 atravessa dois serviços de plataforma diferentes, é exibida por código nativo que
-roda quando o seu app está morto, e só então — se o usuário tocar — volta para o
+roda quando o seu app está morto. Só depois, se o usuário tocar, ela volta para o
 Dart.
 
 Sigo com o app de leilão dos artigos anteriores. As notificações que interessam são
-"seu lance foi superado", "o leilão fecha em cinco minutos" e "você venceu" — e
-todas as três precisam chegar no idioma que o usuário escolheu dentro do app.
+"seu lance foi superado", "o leilão fecha em cinco minutos" e "você venceu". As três
+precisam chegar no idioma que o usuário escolheu dentro do app.
 
 ## Push não se resolve no Dart
 
@@ -56,7 +56,7 @@ abstract interface class PushDriver {
 }
 ```
 
-O terceiro driver — o falso — é o que eu recomendaria mais. Push é a feature mais
+O terceiro driver, o falso, é o que eu mais recomendaria. Push é a feature mais
 chata de testar: exige aparelho real, permissão concedida, servidor cooperando e
 paciência. Com um driver falso, todo o fluxo acima da fronteira (assinar tópico,
 tratar abertura, navegar) fica testável em segundos, no CI, sem tocar em nada nativo.
@@ -83,9 +83,9 @@ final class TopicRejected extends PushFailure {
 
 Aqui está o problema que ninguém avisa, e ele tem duas camadas.
 
-A primeira: **se o usuário escolhe idioma dentro do app, o servidor não sabe disso**
-— a menos que você conte. E não conte no momento do envio; conte no momento do
-registro do dispositivo, junto do token, e atualize sempre que ele trocar:
+A primeira: **se o usuário escolhe idioma dentro do app, o servidor não sabe disso**,
+a menos que você conte. E não conte na hora do envio. Conte no registro do
+dispositivo, junto do token, e atualize sempre que ele trocar:
 
 ```dart
 Future<void> registerDevice() async {
@@ -130,7 +130,7 @@ Depende inteiramente de o locale registrado estar correto.
 ```
 
 Isso resolve o problema do idioma **sem depender do registro estar em dia**, que é a
-sua vantagem real. Cabe bem em três locales — o limite de 4 KB do APNs só começa a
+sua vantagem real. Cabe bem em três locales. O limite de 4 KB do APNs só começa a
 apertar quando a lista de idiomas cresce ou o corpo é longo. O custo verdadeiro não é
 tamanho: é que você transmite três versões para entregar uma, e o catálogo de texto
 passa a viver no servidor.
@@ -158,12 +158,12 @@ cliente monta a frase.
 ```
 
 Os dois blocos são obrigatórios e têm papéis diferentes. O `aps` é o que o sistema
-exibe se ninguém reescrever nada — sem ele, o iOS trata o envio como push silencioso
+exibe se ninguém reescrever nada. Sem ele, o iOS trata o envio como push silencioso
 e **nada aparece na tela**. O `data` é o que o cliente usa para compor a frase final.
 
 **4. `loc-key` e `loc-args`.** A plataforma já resolve isso, e quase ninguém usa. O
 payload carrega uma chave e argumentos, e o **sistema** procura a string no bundle do
-app — sem extension nenhuma:
+app, sem extension nenhuma:
 
 ```json
 {
@@ -177,22 +177,22 @@ app — sem extension nenhuma:
 ```
 
 No FCM o equivalente é `title_loc_key` e `body_loc_args`. É a opção mais barata de
-todas — e tem um porém que decide tudo: **ela resolve contra o idioma do bundle**, que
+todas, e tem um porém que decide tudo: **ela resolve contra o idioma do bundle**, que
 é o idioma do sistema, não o que o usuário escolheu no seu app. Só funciona se o seu
 seletor de idioma alterar `AppleLanguages` no `UserDefaults`, o que a maioria dos apps
-Flutter não faz — eles trocam o locale do lado do Dart, e o bundle nativo nem fica
+Flutter não faz. Eles trocam o locale do lado do Dart, e o bundle nativo nem fica
 sabendo.
 
 ---
 
-Fui pela terceira, e o critério foi a propriedade do texto. Com o app dono: a frase
-acompanha a versão instalada — e não a que o servidor supõe; a formatação de moeda e
-de número sai correta por locale sem o servidor conhecer a convenção de cada um; e
-corrigir uma frase mal escrita é um deploy de app, não uma migração de todas as
-mensagens agendadas.
+Fui pela terceira, e o critério foi a propriedade do texto. Com o app dono, a frase
+acompanha a versão instalada, não a que o servidor supõe. A formatação de moeda e de
+número sai correta por locale sem o servidor conhecer a convenção de cada país. E
+corrigir uma frase mal escrita vira um deploy de app, em vez de uma migração de
+todas as mensagens agendadas.
 
-Se o seu caso for o oposto — muitas mensagens, mudando por campanha, escritas por
-quem não abre o repositório — então o servidor deve ser dono, e a segunda estratégia
+Se o seu caso for o oposto (muitas mensagens, mudando por campanha, escritas por
+quem não abre o repositório), o servidor deve ser dono, e a segunda estratégia
 é a mais honesta: ela entrega o idioma certo sem exigir que o registro do dispositivo
 esteja perfeito.
 
@@ -212,7 +212,7 @@ O `alert` continua sendo o texto de reserva do exemplo anterior: se a extension
 falhar, é ele que aparece.
 
 E aí você cai exatamente no mesmo problema da Live Activity: **a extension é outro
-processo e não herda o idioma escolhido no app**. A solução é a mesma — o app grava
+processo e não herda o idioma escolhido no app**. A solução é a mesma: o app grava
 a escolha no App Group container, e a extension lê de lá antes de compor o texto.
 
 ```swift
@@ -233,7 +233,7 @@ final class NotificationService: UNNotificationServiceExtension {
 
 Vale saber de antemão: se a extension estourar o tempo ou falhar, o sistema exibe o
 conteúdo original do payload. Ou seja, **mande um texto de reserva razoável no
-payload mesmo usando chaves** — senão a falha aparece como notificação vazia.
+payload mesmo usando chaves**. Senão a falha aparece como notificação vazia.
 
 No Android o caminho é mais direto, porque você já controla a exibição: centralizei
 a construção da notificação num único ponto nativo, que lê o idioma escolhido do
@@ -248,14 +248,14 @@ notificação errada para a pessoa errada.
 
 E tópico tem uma armadilha de estado: **assinar tópico é operação de servidor, não
 de app**. Se o usuário desliga a notificação de um leilão, a fonte da verdade é o
-servidor — não a preferência local, que vira e mexe divergiu depois de reinstalar
-app ou trocar aparelho. Levei um tempo pra tratar "silenciar" e "favoritar" como
+servidor, não a preferência local, que vira e mexe divergiu depois de reinstalar app
+ou trocar aparelho. Levei um tempo pra tratar "silenciar" e "favoritar" como
 estado remoto, e as inconsistências pararam.
 
 ## O payload que precisa sobreviver ao app morto
 
 O caso que quebra em produção e nunca em desenvolvimento: notificação chega, o app
-está encerrado, o usuário toca. O sistema inicia o app do zero — e o payload que
+está encerrado, o usuário toca. O sistema inicia o app do zero, e o payload que
 motivou o toque chega antes de a árvore de widgets existir.
 
 Se você tentar navegar naquele instante, não tem para onde navegar. A solução é
@@ -280,7 +280,7 @@ texto pronto do servidor, descobri o problema do idioma quando o app ganhou o
 segundo locale, e refazer isso depois custou uma extension nova no iOS e uma
 migração de mensagens agendadas.
 
-E teria escrito o driver falso antes dos drivers reais. Escrevi por último, para
-poder testar — e percebi que se tivesse escrito primeiro, ele teria definido a
-interface, em vez de a interface ter sido definida pelo primeiro serviço de push que
-eu integrei.
+E teria escrito o driver falso antes dos drivers reais. Escrevi por último, só para
+poder testar. Depois percebi que, se tivesse escrito primeiro, ele é que teria
+definido a interface, em vez de ela ter sido definida pelo primeiro serviço de push
+que eu integrei.

@@ -1,6 +1,6 @@
 ---
 title: "Live Activities in production: what breaks and why"
-summary: Eight problems that only show up once the Live Activity is on someone's device — freezing on partial state, a widget that ignores the app's language, a token race, and a clock that can't depend on push.
+summary: "Eight problems that only show up once the Live Activity is on someone's device: freezing on partial state, a widget that ignores the app's language, a token race, and a clock that can't depend on push."
 publishedAt: "2026-05-19"
 category: flutter
 tags:
@@ -17,7 +17,7 @@ that's exactly where the trouble starts: almost everything that goes wrong only
 shows up later, on a real device, with real data arriving out of order.
 
 I spent a few months building real-time tracking Live Activities, and this is the
-inventory of what broke. I'll use **a live auction** as the running example — not
+inventory of what broke. I'll use **a live auction** as the running example. Not
 because it's the app I worked on, but because it exercises every hard part at once:
 a countdown that can be extended, the user's rank among bidders, bids arriving out
 of order, and an item photo that has to render inside an extension.
@@ -34,14 +34,14 @@ travels in **every** push.
 
 Put the item title in the content state and every bid update carries the item title.
 That looks harmless until the payload grows and you find out the size budget for a
-Live Activity push is tight — and that shipping immutable fields inside
+Live Activity push is tight. And shipping immutable fields inside
 high-frequency updates is waste you pay for at the worst possible moment, while the
 auction is closing and the update is the only thing that matters.
 
 ## Partial state freezes the screen
 
-This was the worst one. The server sends an incomplete content state — one field
-missing, an unexpected `null` — and the Live Activity simply **stops updating**. No
+This was the worst one. The server sends an incomplete content state, with one field
+missing or an unexpected `null`, and the Live Activity simply **stops updating**. No
 error, no crash, it doesn't disappear. It freezes on the last valid state, and the
 user stares at a bid that was already outbid.
 
@@ -87,7 +87,7 @@ either right or lying.
 ## The widget doesn't speak the app's language
 
 If the user picks a language inside the app, the widget extension has no idea. It's
-a separate process, with its own bundle and its own locale resolution — it follows
+a separate process, with its own bundle and its own locale resolution. It follows
 the system language, not yours.
 
 What worked was having the app write that choice to a file inside the App Group
@@ -99,7 +99,7 @@ let group = FileManager.default.containerURL(
 )
 ```
 
-It applies to everything textual and everything formatted — currency included. I
+It applies to everything textual and everything formatted, currency included. I
 found this out in the wrong order: translating case by case, assuming it was a
 string bug, until I realized it was an architecture bug.
 
@@ -110,15 +110,15 @@ that token to your backend along with the activity identifier. Two things bite h
 
 First, the race: the token can arrive before registration finishes, or two tokens can
 land almost together. Serializing mutations of that state on the main thread and
-**keying replay by `activityId`** rather than by auction id solves it — because the
-same auction can have more than one activity over a day.
+**keying replay by `activityId`** rather than by auction id solves it. The same
+auction can have more than one activity over a day.
 
 Second, the activity token does not replace the device token. You need both: one
 addresses the Live Activity, the other identifies who the user is on the other end.
 
 ## The clock can't depend on push
 
-A countdown updating every second over push is impossible — the system would throttle
+A countdown updating every second over push is impossible. The system would throttle
 you within minutes. The answer is to let the clock run **inside the widget**, and let
 push only correct the anchor:
 
@@ -138,8 +138,8 @@ about your flag.
 ## Details that only surface on a device
 
 - **An image in an extension is not an image in the app.** A photo that loads
-  smoothly in an app list won't load in the Live Activity — the extension has a
-  different lifecycle and budget. It needed pre-caching on the app side, writing into
+  smoothly in an app list won't load in the Live Activity, because the extension
+  has a different lifecycle and budget. It needed pre-caching on the app side, writing into
   the App Group before the activity ever needs it.
 - **Watch lands on the `.small` family.** It's the same layout you already
   treated as the small case, and it's where a long title destroys the composition.
@@ -147,7 +147,7 @@ about your flag.
 - **Usernames are unpredictable.** An event row with a full name overflows;
   abbreviating is the rule, not the exception.
 - **Ending is part of the lifecycle.** If the user leaves the screen, the activity has
-  to end. Otherwise it lingers on the lock screen after it stopped meaning anything —
+  to end. Otherwise it lingers on the lock screen after it stopped meaning anything,
   and a zombie Live Activity is worse than none.
 - **Taps have to go somewhere.** A deep link routing to that specific item, not to the
   home tab.
@@ -155,7 +155,7 @@ about your flag.
 ## What I'd do differently
 
 I'd start with state, not UI. I spent time tuning lock screen layout before having a
-tolerant data model — and every serious bug that showed up afterwards was about state,
+tolerant data model, and every serious bug that showed up afterwards was about state,
 not composition. A Live Activity is essentially a synchronization problem with a small
 screen on top.
 

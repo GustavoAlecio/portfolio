@@ -1,6 +1,6 @@
 ---
 title: "Push notifications in their own package: a driver per platform and the language the server doesn't know"
-summary: Why push can't be solved in Dart, how to isolate notifications into a package with per-platform drivers and a fake one, and the problem nobody warns you about — translating the notification into the language the user chose in the app, not the system's.
+summary: "Why push can't be solved in Dart, how to isolate notifications into a package with per-platform drivers and a fake one, and the problem nobody warns you about: translating the notification into the language the user chose in the app, and not the system's."
 publishedAt: "2026-06-30"
 category: arquitetura
 tags:
@@ -13,11 +13,11 @@ draft: false
 
 A push notification looks like a feature and is actually a boundary. It starts on a
 server, crosses two different platform services, gets displayed by native code that
-runs while your app is dead, and only then — if the user taps — comes back to Dart.
+runs while your app is dead. Only later, if the user taps, does it come back to Dart.
 
 I'll keep using the auction app from the previous articles. The notifications that
-matter are "you've been outbid", "the auction closes in five minutes" and "you won" —
-and all three need to arrive in the language the user chose inside the app.
+matter are "you've been outbid", "the auction closes in five minutes" and "you won".
+All three need to arrive in the language the user chose inside the app.
 
 ## Push can't be solved in Dart
 
@@ -55,7 +55,7 @@ abstract interface class PushDriver {
 }
 ```
 
-The third driver — the fake one — is what I'd recommend most. Push is the most
+The third driver, the fake one, is what I'd recommend most. Push is the most
 tedious feature to test: it needs a real device, granted permission, a cooperating
 server and patience. With a fake driver, everything above the boundary (subscribing to
 topics, handling opens, navigating) becomes testable in seconds, in CI, without
@@ -83,9 +83,9 @@ final class TopicRejected extends PushFailure {
 
 Here's the problem nobody warns you about, and it has two layers.
 
-The first: **if the user picks a language inside the app, the server has no idea** —
-unless you tell it. And don't tell it at send time; tell it at device registration
-time, alongside the token, and update it whenever the user switches:
+The first: **if the user picks a language inside the app, the server has no idea**,
+unless you tell it. And don't tell it at send time. Tell it at device registration,
+alongside the token, and update it whenever the user switches:
 
 ```dart
 Future<void> registerDevice() async {
@@ -130,7 +130,7 @@ payload. Depends entirely on the registered locale being correct.
 ```
 
 This solves the language problem **without depending on registration being up to
-date**, which is its real advantage. It fits comfortably in three locales — APNs' 4 KB
+date**, which is its real advantage. It fits comfortably in three locales. APNs' 4 KB
 limit only starts to bite as the language list grows or bodies get long. The true cost
 isn't size: it's that you transmit three versions to deliver one, and the copy catalog
 moves onto the server.
@@ -158,13 +158,13 @@ client composes the sentence.
 ```
 
 Both blocks are required and play different roles. `aps` is what the system displays if
-nobody rewrites anything — without it, iOS treats the send as a silent push and
+nobody rewrites anything. Without it, iOS treats the send as a silent push and
 **nothing appears on screen**. `data` is what the client uses to compose the final
 sentence.
 
 **4. `loc-key` and `loc-args`.** The platform already solves this, and almost nobody
 uses it. The payload carries a key and arguments, and the **system** looks the string
-up in the app's bundle — no extension at all:
+up in the app's bundle, with no extension at all:
 
 ```json
 {
@@ -178,22 +178,22 @@ up in the app's bundle — no extension at all:
 ```
 
 On FCM the equivalent is `title_loc_key` and `body_loc_args`. It's the cheapest option
-of all — and it comes with a catch that decides everything: **it resolves against the
+of all, and it comes with a catch that decides everything: **it resolves against the
 bundle's language**, which is the system language, not the one the user chose in your
 app. It only works if your language switcher changes `AppleLanguages` in
-`UserDefaults`, which most Flutter apps don't do — they swap the locale on the Dart
+`UserDefaults`, which most Flutter apps don't do. They swap the locale on the Dart
 side, and the native bundle never finds out.
 
 ---
 
 I went with the third, and the criterion was ownership of the copy. With the app as
-owner: the sentence follows the installed version — not the one the server assumes;
-currency and number formatting come out right per locale without the server knowing
-each convention; and fixing badly worded copy is an app release, not a migration of
-every scheduled message.
+owner, the sentence follows the installed version, not the one the server assumes.
+Currency and number formatting come out right per locale without the server knowing
+each country's convention. And fixing badly worded copy becomes an app release,
+instead of a migration of every scheduled message.
 
-If your case is the opposite — many messages, changing per campaign, written by people
-who never open the repository — then the server should own it, and the second strategy
+If your case is the opposite (many messages, changing per campaign, written by people
+who never open the repository), the server should own it, and the second strategy
 is the most honest one: it delivers the right language without requiring device
 registration to be perfect.
 
@@ -214,7 +214,7 @@ fails, that's what shows up.
 
 And there you land in exactly the same problem as the Live Activity: **the extension is
 a separate process and doesn't inherit the language chosen in the app**. The solution is
-the same — the app writes the choice into the App Group container, and the extension
+the same: the app writes the choice into the App Group container, and the extension
 reads it before composing the text.
 
 ```swift
@@ -235,7 +235,7 @@ final class NotificationService: UNNotificationServiceExtension {
 
 Worth knowing up front: if the extension runs out of time or fails, the system displays
 the payload's original content. Which means **send a reasonable fallback text in the
-payload even when you're using keys** — otherwise the failure shows up as an empty
+payload even when you're using keys**. Otherwise the failure shows up as an empty
 notification.
 
 On Android the path is more direct, because you already control display: I centralized
@@ -249,14 +249,14 @@ what's individual: "you've been outbid". Mixing them is what produces the wrong
 notification for the wrong person.
 
 And topics have a state trap: **subscribing to a topic is a server operation, not an app
-one**. If the user mutes an auction, the source of truth is the server — not the local
+one**. If the user mutes an auction, the source of truth is the server, not the local
 preference, which kept diverging after reinstalls and device changes. It took me a while
 to treat "mute" and "favorite" as remote state, and the inconsistencies stopped.
 
 ## The payload that has to survive a dead app
 
 The case that breaks in production and never in development: the notification arrives,
-the app is killed, the user taps. The system launches the app from scratch — and the
+the app is killed, the user taps. The system launches the app from scratch, and the
 payload that motivated the tap arrives before the widget tree exists.
 
 If you try to navigate at that moment, there's nowhere to navigate to. The fix is to
@@ -281,6 +281,7 @@ finished text from the server, discovered the language problem when the app got 
 second locale, and redoing it afterwards cost a new iOS extension and a migration of
 every scheduled message.
 
-And I'd have written the fake driver before the real ones. I wrote it last, in order to
-test — and realized that if I'd written it first, it would have defined the interface,
-instead of the interface being defined by the first push service I happened to integrate.
+And I'd have written the fake driver before the real ones. I wrote it last, just so I could
+test. Then I realized that if I'd written it first, it would have defined the
+interface, instead of the interface being defined by the first push service I
+happened to integrate.

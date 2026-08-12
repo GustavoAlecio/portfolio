@@ -1,6 +1,6 @@
 ---
 title: "Live Activities in a Flutter app: from zero to device"
-summary: The full path — widget extension target, App Group, the state contract, the lock screen and Dynamic Island views, and how to start, update over APNs and end it from Dart.
+summary: "The full path: widget extension target, App Group, the state contract, the lock screen and Dynamic Island views, and how to start, update over APNs and end it from Dart."
 publishedAt: "2026-05-12"
 category: flutter
 tags:
@@ -16,7 +16,7 @@ sounds: the work is a platform channel and a SwiftUI widget. What actually trips
 people up is how much configuration has to be right **before** the first line of
 code does anything.
 
-I'll use a **live auction** as the example — a rising bid, the user's rank among
+I'll use a **live auction** as the example: a rising bid, the user's rank among
 bidders, and a countdown that can be extended. It works for anything a user wants to
 follow without opening the app.
 
@@ -25,12 +25,12 @@ follow without opening the app.
 Four things in the iOS project, none of them optional:
 
 - **A Widget Extension target.** This is where the Live Activity's SwiftUI lives. It
-  isn't your app — it's a separate process, with its own bundle identifier, suffixed
+  isn't your app, but a separate process, with its own bundle identifier, suffixed
   from the main one.
 - **An App Group on both targets.** It's the only file channel between app and
   widget. You'll need it more than you expect.
 - **`NSSupportsLiveActivities`** set to `true` in the app's `Info.plist`.
-- **Push capability**, if you'll update from a server — which you will, for anything
+- **Push capability**, if you'll update from a server, which you will for anything
   real-time.
 
 Before calling any API, confirm the user allows it:
@@ -160,8 +160,8 @@ final class LiveActivityManager {
 ```
 
 Note `pushType: .token`: that's what makes iOS emit a push token specific to that
-activity. Without it you can only update from inside the open app — useless for
-anything live.
+activity. Without it you can only update from inside the open app, which is
+useless for anything live.
 
 ## 5. The channel to Dart
 
@@ -214,14 +214,14 @@ And the payload carries the whole `content-state`, not a delta:
 ```
 
 `event` accepts `update` and `end`. The `timestamp` is required, and it's what lets
-iOS discard updates that arrive out of order — which happens more than you'd like.
+iOS discard updates that arrive out of order, which happens more than you'd like.
 
 ## 7. Testing
 
 The simulator helps with layout and lies about everything else. Two things worth
 building before you need them:
 
-- **A simulation script** that fires the sequence of states a real session produces —
+- **A simulation script** that fires the sequence of states a real session produces:
   a bid, being outbid, an extension in the last seconds, closing. Faster than waiting
   for a real auction to happen.
 - **Logging on the widget side**, because the extension doesn't show up in the app's
@@ -232,5 +232,5 @@ building before you need them:
 
 That's the happy path. What it doesn't cover is what happens when the payload arrives
 incomplete, when the widget ignores the language chosen in the app, or when the clock
-has to run without push — and that's where the real work is. I wrote that inventory up
+has to run without push. That's where the real work is. I wrote that inventory up
 in [what breaks and why](/en/blog/live-activity-leilao-ao-vivo).

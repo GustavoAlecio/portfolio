@@ -1,6 +1,6 @@
 ---
 title: "CI/CD de app Flutter: do build manual ao pipeline em que você confia"
-summary: O que um pipeline mobile precisa impedir antes de precisar fazer — portão de versão, assinatura sem segredo em máquina de ninguém, toolchain fixada inteira e por que símbolo de ofuscação é parte do artefato.
+summary: "O que um pipeline mobile precisa impedir antes de precisar fazer: portão de versão, assinatura sem segredo em máquina de ninguém, toolchain fixada inteira e por que símbolo de ofuscação é parte do artefato."
 publishedAt: "2026-06-02"
 category: infra
 tags:
@@ -19,14 +19,14 @@ número de build repetiu, ou que o relatório de crash chegou ilegível porque o
 símbolo de ofuscação ficou na máquina de quem rodou.
 
 Reconstruí a entrega de um app Flutter do zero por causa disso. Vou usar o mesmo
-app de leilão dos artigos anteriores como exemplo — Android e iOS, três ambientes,
+app de leilão dos artigos anteriores como exemplo: Android e iOS, três ambientes,
 GitHub Actions para validação e Codemagic para os builds que precisam de macOS.
 
 ## O pipeline existe para impedir, não para fazer
 
 O erro de enquadramento mais comum é tratar CI como automação de tarefa: "antes eu
 rodava esses comandos, agora a máquina roda". Se for só isso, você trocou trabalho
-manual por trabalho manual mais rápido, e continua publicando errado — só com mais
+manual por trabalho manual mais rápido, e continua publicando errado, só que com mais
 eficiência.
 
 O valor está nos portões. Todo passo que **recusa** avançar é o que transforma
@@ -59,7 +59,7 @@ Repare no `set -euo pipefail`. Volto nele no fim.
 ## Assinatura não pode morar na máquina de ninguém
 
 Enquanto a chave de assinatura Android está no notebook de alguém, você não tem
-pipeline — tem uma pessoa. E aquele mesmo notebook é o único lugar onde a release
+pipeline. Tem uma pessoa. E aquele mesmo notebook é o único lugar onde a release
 sai.
 
 O caminho que funcionou foi guardar o keystore cifrado no próprio repositório e
@@ -96,8 +96,8 @@ environment:
 
 Fixar Flutter e CocoaPods e deixar o Xcode em `latest` significa que o seu build
 reproduzível é reproduzível até a Apple lançar uma versão nova. Aí, numa
-terça-feira qualquer, sem nenhum commit seu, o pipeline quebra — e você vai
-procurar o culpado no seu código.
+terça-feira qualquer, sem nenhum commit seu, o pipeline quebra, e você vai
+procurar o culpado no seu próprio código.
 
 Ou você fixa tudo e assume o custo de atualizar deliberadamente, ou deixa tudo
 flutuando e assume que quebra às vezes. O meio é o pior dos dois: quebra sem
@@ -105,8 +105,8 @@ aviso e você não desconfia da causa.
 
 ## Três ambientes: duplicação honesta
 
-Tenho três workflows quase idênticos — `deploy-dev`, `deploy-stg` e `deploy-prod`
-— e não parametrizei em um só de propósito.
+Tenho três workflows quase idênticos, `deploy-dev`, `deploy-stg` e `deploy-prod`, e
+não parametrizei em um só de propósito.
 
 A tentação de unificar é forte, e o preço aparece rápido: um workflow
 parametrizado por ambiente acumula condicional, e condicional em pipeline é o
@@ -118,13 +118,13 @@ que eu leio de cima a baixo do que um arquivo que eu preciso simular na cabeça.
 
 Onde eu **não** duplico é no que produz o artefato: build de AAB, build de APK
 universal e build de IPA são o mesmo script chamado com parâmetro diferente. O APK
-universal existe porque teste interno e distribuição fora da loja precisam dele —
-o AAB é o que vai pra Play Store, mas ele não instala em aparelho de QA.
+universal existe porque teste interno e distribuição fora da loja precisam dele. O AAB
+é o que vai pra Play Store, mas ele não instala em aparelho de QA.
 
 ## Símbolo de ofuscação é parte do artefato
 
-Se você ofusca o build — e deveria — o relatório de crash chega inútil sem o
-mapa de símbolos. Empacotar esse mapa junto do artefato de cada release é o que
+Se você ofusca o build, e deveria, o relatório de crash chega inútil sem o mapa de
+símbolos. Empacotar esse mapa junto do artefato de cada release é o que
 separa "temos ofuscação" de "temos ofuscação e ainda conseguimos depurar".
 
 ```yaml
@@ -166,8 +166,8 @@ jobs:
 ```
 
 Note que `packages/shared` aparece nos dois filtros. Fronteira compartilhada
-dispara os dois lados, e isso é intencional — o custo de rodar demais é minutos, o
-custo de rodar de menos é bug em produção.
+dispara os dois lados, e isso é intencional: o custo de rodar demais é minutos, o custo
+de rodar de menos é bug em produção.
 
 ## Infra: `plan` no PR, `apply` no botão
 
@@ -199,8 +199,8 @@ release, e que valem mais que qualquer conselho genérico:
 porque o runner não tem `user.name` configurado. Óbvio depois, invisível antes.
 
 **Faltou `pipefail`.** Um passo usava `algo | grep padrão` e seguia adiante em
-sucesso mesmo quando o comando da esquerda falhava — porque em shell o código de
-saída de um pipe é o do último comando. O pipeline passava verde num passo que não
+sucesso mesmo quando o comando da esquerda falhava. Em shell, o código de saída de um
+pipe é o do último comando. O pipeline passava verde num passo que não
 tinha feito nada.
 
 A conclusão é chata e verdadeira: script de pipeline merece o mesmo cuidado que
@@ -210,10 +210,10 @@ permanente de qualquer passo que "passou" rápido demais.
 ## O que eu faria diferente
 
 Começaria pelos portões, não pelos builds. Passei os primeiros dias fazendo o
-build funcionar no runner — que é a parte divertida — e só depois pensei no que o
+build funcionar no runner, que é a parte divertida, e só depois pensei no que o
 pipeline deveria recusar. A ordem inversa teria evitado dois releases errados que
 o portão de versão pegaria de graça.
 
 E mediria antes. Não dá pra saber se a entrega melhorou sem saber quanto tempo ela
 levava e quantas etapas dependiam de alguém lembrar de algo. Eu não tinha isso
-anotado, e por isso hoje só consigo dizer que ficou melhor — não consigo mostrar.
+anotado, e por isso hoje só consigo dizer que ficou melhor. Não consigo mostrar.

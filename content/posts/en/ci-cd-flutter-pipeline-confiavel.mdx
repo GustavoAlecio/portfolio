@@ -1,6 +1,6 @@
 ---
 title: "Flutter CI/CD: from manual builds to a pipeline you trust"
-summary: What a mobile pipeline needs to prevent before it needs to do anything — a version gate, signing keys that live on nobody's laptop, a fully pinned toolchain, and why obfuscation symbols are part of the artifact.
+summary: "What a mobile pipeline needs to prevent before it needs to do anything: a version gate, signing keys that live on nobody's laptop, a fully pinned toolchain, and why obfuscation symbols are part of the artifact."
 publishedAt: "2026-06-02"
 category: infra
 tags:
@@ -19,7 +19,7 @@ key, or that the build number repeated, or that the crash report arrived unreada
 because the obfuscation symbols stayed on the machine of whoever ran it.
 
 I rebuilt a Flutter app's delivery from scratch because of that. I'll use the same
-auction app from the previous articles as the example — Android and iOS, three
+auction app from the previous articles as the example: Android and iOS, three
 environments, GitHub Actions for validation and Codemagic for the builds that need
 macOS.
 
@@ -27,7 +27,7 @@ macOS.
 
 The most common framing mistake is treating CI as task automation: "I used to run
 these commands, now the machine runs them". If that's all it is, you traded manual
-work for faster manual work, and you're still shipping wrong — just more
+work for faster manual work, and you're still shipping wrong, just more
 efficiently.
 
 The value is in the gates. Every step that **refuses** to move forward is what turns
@@ -60,8 +60,8 @@ Note the `set -euo pipefail`. I'll come back to it at the end.
 
 ## Signing can't live on anybody's laptop
 
-While the Android signing key sits on someone's laptop, you don't have a pipeline —
-you have a person. And that same laptop is the only place a release can come from.
+While the Android signing key sits on someone's laptop, you don't have a pipeline.
+You have a person. And that same laptop is the only place a release can come from.
 
 What worked was keeping the keystore encrypted in the repository and decrypting it
 on the runner, with the passphrase coming from the variable vault:
@@ -97,7 +97,7 @@ environment:
 
 Pinning Flutter and CocoaPods while leaving Xcode on `latest` means your
 reproducible build is reproducible right up until Apple ships a new version. Then,
-on some random Tuesday, with no commit of yours involved, the pipeline breaks — and
+on some random Tuesday, with no commit of yours involved, the pipeline breaks, and
 you'll go looking for the culprit in your own code.
 
 Either you pin everything and accept the cost of deliberate upgrades, or you float
@@ -106,8 +106,8 @@ breaks without warning and you don't suspect the cause.
 
 ## Three environments: honest duplication
 
-I keep three nearly identical workflows — `deploy-dev`, `deploy-stg` and
-`deploy-prod` — and deliberately didn't collapse them into one parameterized job.
+I keep three nearly identical workflows, `deploy-dev`, `deploy-stg` and
+`deploy-prod`, and deliberately didn't collapse them into one parameterized job.
 
 The urge to unify is strong, and the price shows up fast: a workflow parameterized
 by environment accumulates conditionals, and a pipeline is the most expensive place
@@ -120,13 +120,13 @@ top to bottom than simulate one file in my head.
 Where I **don't** duplicate is the part that produces the artifact: the AAB build,
 the universal APK build and the IPA build are the same script called with different
 parameters. The universal APK exists because internal testing and off-store
-distribution need it — the AAB is what goes to Play, but it doesn't install on a QA
+distribution need it. The AAB is what goes to Play, but it doesn't install on a QA
 device.
 
 ## Obfuscation symbols are part of the artifact
 
-If you obfuscate the build — and you should — the crash report is useless without
-the symbol map. Packaging that map alongside each release artifact is what separates
+If you obfuscate the build, and you should, the crash report is useless without the
+symbol map. Packaging that map alongside each release artifact is what separates
 "we have obfuscation" from "we have obfuscation and can still debug".
 
 ```yaml
@@ -168,7 +168,7 @@ jobs:
 ```
 
 Note that `packages/shared` appears in both filters. A shared boundary triggers both
-sides, and that's intentional — the cost of running too much is minutes, the cost of
+sides, and that's intentional: the cost of running too much is minutes, the cost of
 running too little is a bug in production.
 
 ## Infrastructure: `plan` on the PR, `apply` on a button
@@ -202,8 +202,8 @@ because the runner has no `user.name` configured. Obvious afterwards, invisible
 before.
 
 **Missing `pipefail`.** A step used `something | grep pattern` and moved on
-successfully even when the left-hand command failed — because in a shell, a pipe's
-exit code is the last command's. The pipeline went green on a step that had done
+successfully even when the left-hand command failed. In a shell, a pipe's exit code is
+the last command's. The pipeline went green on a step that had done
 nothing.
 
 The conclusion is boring and true: pipeline scripts deserve the same care as
@@ -213,11 +213,11 @@ suspicion of any step that "passed" a little too fast.
 ## What I'd do differently
 
 I'd start with the gates, not the builds. I spent the first days getting the build to
-work on the runner — the fun part — and only then thought about what the pipeline
-should refuse. The reverse order would have prevented two bad releases the version
+work on the runner, which is the fun part, and only then thought about what the
+pipeline should refuse. The reverse order would have prevented two bad releases the version
 gate would have caught for free.
 
 And I'd measure first. There's no way to know whether delivery improved without
 knowing how long it took and how many steps depended on someone remembering
-something. I didn't write that down, which is why today I can only say it got better
-— I can't show it.
+something. I didn't write that down, which is why today I can only say it got better.
+I can't show it.

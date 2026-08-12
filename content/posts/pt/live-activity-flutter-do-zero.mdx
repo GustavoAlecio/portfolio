@@ -1,6 +1,6 @@
 ---
 title: "Live Activity em app Flutter: do zero até o aparelho"
-summary: O caminho completo — target de widget extension, App Group, o contrato de estado, a view de tela de bloqueio e Dynamic Island, e como iniciar, atualizar por APNs e encerrar a partir do Dart.
+summary: "O caminho completo: target de widget extension, App Group, o contrato de estado, a view de tela de bloqueio e Dynamic Island, e como iniciar, atualizar por APNs e encerrar a partir do Dart."
 publishedAt: "2026-05-12"
 category: flutter
 tags:
@@ -16,16 +16,16 @@ parece: o trabalho é um canal de plataforma e um widget em SwiftUI. O que confu
 é a quantidade de configuração que precisa estar certa **antes** de a primeira
 linha de código funcionar.
 
-Vou usar um **leilão ao vivo** como exemplo — lance subindo, posição do usuário
-entre os licitantes e uma contagem regressiva que pode ganhar prorrogação. Serve
+Vou usar um **leilão ao vivo** como exemplo: lance subindo, posição do usuário entre
+os licitantes e uma contagem regressiva que pode ganhar prorrogação. Serve
 para qualquer coisa que o usuário queira acompanhar sem abrir o app.
 
 ## 1. A configuração que precede o código
 
 Quatro coisas no projeto iOS, e nenhuma delas é opcional:
 
-- **Um target de Widget Extension.** É onde o SwiftUI da Live Activity vive. Não é
-  o seu app — é outro processo, com outro bundle identifier, sufixo do principal.
+- **Um target de Widget Extension.** É onde o SwiftUI da Live Activity vive. Não é o
+  seu app, e sim outro processo, com outro bundle identifier, sufixo do principal.
 - **App Group nos dois targets.** É o único canal de arquivo entre app e widget.
   Você vai precisar dele mais do que imagina.
 - **`NSSupportsLiveActivities`** no `Info.plist` do app, como `true`.
@@ -159,8 +159,8 @@ final class LiveActivityManager {
 ```
 
 Note o `pushType: .token`: é o que faz o iOS emitir um push token específico
-daquela activity. Sem isso, você só consegue atualizar de dentro do app aberto —
-inútil para qualquer coisa ao vivo.
+daquela activity. Sem isso, você só consegue atualizar de dentro do app aberto,
+o que é inútil para qualquer coisa ao vivo.
 
 ## 5. O canal com o Dart
 
@@ -213,7 +213,7 @@ E o payload carrega o `content-state` inteiro, não um delta:
 ```
 
 `event` aceita `update` e `end`. O `timestamp` é obrigatório e serve para o iOS
-descartar atualização que chega fora de ordem — o que acontece mais do que você
+descartar atualização que chega fora de ordem, o que acontece mais do que você
 gostaria.
 
 ## 7. Testar
@@ -222,7 +222,7 @@ Simulador ajuda no layout e mente sobre o resto. Duas coisas que valem montar
 antes de precisar:
 
 - **Script de simulação**, disparando a sequência de estados que uma sessão real
-  produz — lance, ultrapassagem, prorrogação nos últimos segundos, encerramento. É
+  produz: lance, ultrapassagem, prorrogação nos últimos segundos, encerramento. É
   mais rápido que esperar um leilão de verdade acontecer.
 - **Log do lado do widget**, porque a extension não aparece no console do app e
   você vai passar um tempo achando que o push não chegou quando ele chegou e foi
@@ -232,5 +232,5 @@ antes de precisar:
 
 Esse é o caminho feliz. O que ele não conta é o que acontece quando o payload chega
 incompleto, quando o widget ignora o idioma escolhido no app, ou quando o relógio
-precisa correr sem push — e é aí que mora o trabalho de verdade. Escrevi esse
+precisa correr sem push. É aí que mora o trabalho de verdade. Escrevi esse
 inventário em [o que quebra e por quê](/blog/live-activity-leilao-ao-vivo).
