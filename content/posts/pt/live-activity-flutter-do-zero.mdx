@@ -1,0 +1,236 @@
+---
+title: "Live Activity em app Flutter: do zero até o aparelho"
+summary: O caminho completo — target de widget extension, App Group, o contrato de estado, a view de tela de bloqueio e Dynamic Island, e como iniciar, atualizar por APNs e encerrar a partir do Dart.
+publishedAt: "2026-08-10"
+category: flutter
+tags:
+  - ios
+  - activitykit
+  - flutter
+  - swift
+draft: false
+---
+
+Live Activity não tem plugin oficial do Flutter, e isso assusta menos do que
+parece: o trabalho é um canal de plataforma e um widget em SwiftUI. O que confunde
+é a quantidade de configuração que precisa estar certa **antes** de a primeira
+linha de código funcionar.
+
+Vou usar um **leilão ao vivo** como exemplo — lance subindo, posição do usuário
+entre os licitantes e uma contagem regressiva que pode ganhar prorrogação. Serve
+para qualquer coisa que o usuário queira acompanhar sem abrir o app.
+
+## 1. A configuração que precede o código
+
+Quatro coisas no projeto iOS, e nenhuma delas é opcional:
+
+- **Um target de Widget Extension.** É onde o SwiftUI da Live Activity vive. Não é
+  o seu app — é outro processo, com outro bundle identifier, sufixo do principal.
+- **App Group nos dois targets.** É o único canal de arquivo entre app e widget.
+  Você vai precisar dele mais do que imagina.
+- **`NSSupportsLiveActivities`** no `Info.plist` do app, como `true`.
+- **Capability de push** se você for atualizar por servidor, que é o caso de
+  qualquer coisa em tempo real.
+
+Antes de chamar qualquer API, confirme que o usuário permite:
+
+```swift
+guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+```
+
+Isso pode ser `false` por escolha do usuário nos ajustes, e ignorar esse retorno é
+a causa mais boba de "não funciona no meu iPhone".
+
+## 2. O contrato de estado
+
+`ActivityAttributes` é imutável depois que a activity começa. `ContentState` é o
+que o push atualiza. A divisão é permanente, então vale pensar dois minutos: o que
+**é** o leilão vai nos atributos, o que **acontece** nele vai no estado.
+
+```swift
+import ActivityKit
+
+struct AuctionActivityAttributes: ActivityAttributes {
+    struct ContentState: Codable, Hashable {
+        let currentBid: Decimal
+        let bidCount: Int
+        let myRank: Int?
+        let phase: String
+        let closesAt: Date?
+    }
+
+    let auctionId: String
+    let itemTitle: String
+    let sellerName: String
+}
+```
+
+## 3. A view
+
+Uma `ActivityConfiguration` descreve os dois mundos: tela de bloqueio e Dynamic
+Island. A mesma fonte de dados, três composições diferentes para a ilha.
+
+```swift
+import SwiftUI
+import WidgetKit
+
+struct AuctionActivityWidget: Widget {
+    var body: some WidgetConfiguration {
+        ActivityConfiguration(for: AuctionActivityAttributes.self) { context in
+            // tela de bloqueio e banner
+            VStack(alignment: .leading, spacing: 4) {
+                Text(context.attributes.itemTitle)
+                    .lineLimit(1)
+                Text(context.state.currentBid, format: .currency(code: "BRL"))
+                    .monospacedDigit()
+                if let rank = context.state.myRank {
+                    Text("sua posição: \(rank)")
+                }
+            }
+            .padding()
+            .activityBackgroundTint(.black.opacity(0.6))
+
+        } dynamicIsland: { context in
+            DynamicIsland {
+                DynamicIslandExpandedRegion(.leading) {
+                    Text(context.attributes.itemTitle).lineLimit(1)
+                }
+                DynamicIslandExpandedRegion(.trailing) {
+                    Text(context.state.currentBid, format: .currency(code: "BRL"))
+                        .monospacedDigit()
+                }
+                DynamicIslandExpandedRegion(.bottom) {
+                    Text("\(context.state.bidCount) lances")
+                }
+            } compactLeading: {
+                Image(systemName: "hammer.fill")
+            } compactTrailing: {
+                Text(context.state.currentBid, format: .currency(code: "BRL"))
+                    .monospacedDigit()
+            } minimal: {
+                Image(systemName: "hammer.fill")
+            }
+        }
+    }
+}
+```
+
+Duas coisas que economizam retrabalho: use `monospacedDigit()` em qualquer número
+que muda, senão o layout dança a cada lance; e trate a família `.small` desde o
+começo, porque é ela que aparece no Watch.
+
+## 4. Iniciar, atualizar e encerrar do lado nativo
+
+Um gerenciador simples cobre o ciclo de vida inteiro:
+
+```swift
+final class LiveActivityManager {
+    private var activity: Activity<AuctionActivityAttributes>?
+
+    func start(auctionId: String, title: String, seller: String) throws {
+        let attributes = AuctionActivityAttributes(
+            auctionId: auctionId, itemTitle: title, sellerName: seller
+        )
+        let initial = AuctionActivityAttributes.ContentState(
+            currentBid: 0, bidCount: 0, myRank: nil,
+            phase: "scheduled", closesAt: nil
+        )
+
+        activity = try Activity.request(
+            attributes: attributes,
+            content: .init(state: initial, staleDate: nil),
+            pushType: .token           // atualização vem do servidor
+        )
+    }
+
+    func observeToken() async {
+        guard let activity else { return }
+        for await data in activity.pushTokenUpdates {
+            let token = data.map { String(format: "%02x", $0) }.joined()
+            // manda para o backend junto do activityId
+            await register(token: token, activityId: activity.id)
+        }
+    }
+
+    func end() async {
+        await activity?.end(nil, dismissalPolicy: .immediate)
+    }
+}
+```
+
+Note o `pushType: .token`: é o que faz o iOS emitir um push token específico
+daquela activity. Sem isso, você só consegue atualizar de dentro do app aberto —
+inútil para qualquer coisa ao vivo.
+
+## 5. O canal com o Dart
+
+Do lado Flutter, um `MethodChannel` e nada mais exótico:
+
+```dart
+class LiveActivityChannel {
+  static const _channel = MethodChannel('app/live_activity');
+
+  Future<void> start(Auction auction) => _channel.invokeMethod('start', {
+        'auctionId': auction.id,
+        'title': auction.item.title,
+        'seller': auction.seller.name,
+      });
+
+  Future<void> end() => _channel.invokeMethod('end');
+}
+```
+
+Chame `start` quando o usuário entrar no leilão e `end` quando ele sair. Live
+Activity que continua depois de perder sentido é pior que nenhuma.
+
+## 6. Atualizar por APNs
+
+O push de Live Activity não é o push normal. Vai para o token da activity, com
+cabeçalhos próprios:
+
+```http
+apns-push-type: liveactivity
+apns-topic: com.exemplo.leilao.push-type.liveactivity
+apns-priority: 10
+```
+
+E o payload carrega o `content-state` inteiro, não um delta:
+
+```json
+{
+  "aps": {
+    "timestamp": 1786500000,
+    "event": "update",
+    "content-state": {
+      "currentBid": 1850.00,
+      "bidCount": 34,
+      "myRank": 2,
+      "phase": "extended",
+      "closesAt": "2026-08-10T20:31:00Z"
+    }
+  }
+}
+```
+
+`event` aceita `update` e `end`. O `timestamp` é obrigatório e serve para o iOS
+descartar atualização que chega fora de ordem — o que acontece mais do que você
+gostaria.
+
+## 7. Testar
+
+Simulador ajuda no layout e mente sobre o resto. Duas coisas que valem montar
+antes de precisar:
+
+- **Script de simulação**, disparando a sequência de estados que uma sessão real
+  produz — lance, ultrapassagem, prorrogação nos últimos segundos, encerramento. É
+  mais rápido que esperar um leilão de verdade acontecer.
+- **Log do lado do widget**, porque a extension não aparece no console do app e
+  você vai passar um tempo achando que o push não chegou quando ele chegou e foi
+  descartado.
+
+---
+
+Esse é o caminho feliz. O que ele não conta é o que acontece quando o payload chega
+incompleto, quando o widget ignora o idioma escolhido no app, ou quando o relógio
+precisa correr sem push — e é aí que mora o trabalho de verdade. Escrevi esse
+inventário em [o que quebra e por quê](/blog/live-activity-leilao-ao-vivo).

@@ -1,0 +1,67 @@
+{
+  "site": {
+    "name": "Gustavo Alecio",
+    "role": "engenharia mobile",
+    "description": "Engenheiro mobile — Flutter, Android e iOS em aplicações de tempo real."
+  },
+  "nav": {
+    "home": "Início",
+    "projects": "Projetos",
+    "blog": "Blog",
+    "about": "Sobre",
+    "language": "Idioma"
+  },
+  "home": {
+    "available": "Disponível para consultoria",
+    "headlineStart": "Apps móveis que respondem em",
+    "headlineAccent": "tempo real",
+    "headlineEnd": "",
+    "lede": "Sete anos em Flutter, Android e iOS, em domínios onde latência é requisito e não métrica de vaidade: odds ao vivo, push regulado, streams abertas por horas.",
+    "ctaProjects": "Ver projetos",
+    "ctaBlog": "Ler o blog",
+    "featured": "Projeto em destaque",
+    "latest": "Escrita recente",
+    "allProjects": "Todos os projetos",
+    "allPosts": "Todos os artigos",
+    "ctaAbout": "Sobre mim"
+  },
+  "projects": {
+    "title": "Projetos",
+    "lede": "Cada projeto com vídeo curto de tela real e as medidas que importam — antes e depois.",
+    "inProduction": "Em produção",
+    "caseStudy": "Estudo de caso",
+    "next": "Próximo projeto",
+    "measures": "Medidas",
+    "present": "hoje"
+  },
+  "blog": {
+    "title": "Blog",
+    "lede": "O que aprendi, escrito antes de esquecer.",
+    "readingTime": "{minutes} min",
+    "onThisPage": "Nesta página",
+    "read": "Ler artigo",
+    "empty": "Nenhum artigo neste idioma ainda.",
+    "fallbackLabel": "PT pendente",
+    "fallbackNotice": "A tradução em português deste artigo ainda não saiu. Você está lendo a versão original.",
+    "categories": {
+      "flutter": "Flutter",
+      "arquitetura": "Arquitetura",
+      "performance": "Performance",
+      "infra": "Infra",
+      "seguranca": "Segurança"
+    }
+  },
+  "about": {
+    "title": "Sobre",
+    "howIWork": "Como eu trabalho",
+    "timeline": "Trajetória",
+    "talk": "Conversar",
+    "email": "Enviar e-mail",
+    "cv": "Baixar CV",
+    "portraitSlot": "slot de retrato",
+    "tools": "Ferramentas"
+  },
+  "footer": {
+    "rights": "© {year} Gustavo Alecio"
+  }
+}

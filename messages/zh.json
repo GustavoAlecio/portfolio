@@ -1,0 +1,67 @@
+{
+  "site": {
+    "name": "Gustavo Alecio",
+    "role": "移动端工程",
+    "description": "移动端工程师 —— 专注 Flutter、Android 与 iOS 的实时应用开发。"
+  },
+  "nav": {
+    "home": "首页",
+    "projects": "项目",
+    "blog": "博客",
+    "about": "关于",
+    "language": "语言"
+  },
+  "home": {
+    "available": "可承接咨询项目",
+    "headlineStart": "打造",
+    "headlineAccent": "实时响应",
+    "headlineEnd": "的移动应用",
+    "lede": "七年 Flutter、Android 与 iOS 开发经验，专注于「延迟即需求」的领域：实时赔率、受监管的推送、长时间保持的数据流。",
+    "ctaProjects": "查看项目",
+    "ctaBlog": "阅读博客",
+    "featured": "精选项目",
+    "latest": "近期文章",
+    "allProjects": "全部项目",
+    "allPosts": "全部文章",
+    "ctaAbout": "关于我"
+  },
+  "projects": {
+    "title": "项目",
+    "lede": "每个项目都配有真实界面的短录屏，以及关键指标的前后对比。",
+    "inProduction": "已上线",
+    "caseStudy": "查看案例",
+    "next": "下一个项目",
+    "measures": "关键指标",
+    "present": "至今"
+  },
+  "blog": {
+    "title": "博客",
+    "lede": "趁还没忘记时记录下来的经验。",
+    "readingTime": "阅读约 {minutes} 分钟",
+    "onThisPage": "本页目录",
+    "read": "阅读文章",
+    "empty": "暂无该语言的文章。",
+    "fallbackLabel": "中文待译",
+    "fallbackNotice": "本文的中文版尚未完成，您正在阅读原文版本。",
+    "categories": {
+      "flutter": "Flutter",
+      "arquitetura": "架构",
+      "performance": "性能",
+      "infra": "基础设施",
+      "seguranca": "安全"
+    }
+  },
+  "about": {
+    "title": "关于",
+    "howIWork": "我的工作方式",
+    "timeline": "经历",
+    "talk": "联系我",
+    "email": "发送邮件",
+    "cv": "下载简历",
+    "portraitSlot": "头像位",
+    "tools": "技术栈与工具"
+  },
+  "footer": {
+    "rights": "© {year} Gustavo Alecio"
+  }
+}

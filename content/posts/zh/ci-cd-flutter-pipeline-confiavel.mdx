@@ -1,0 +1,196 @@
+---
+title: "Flutter 的 CI/CD：从手工构建到一条你敢信任的流水线"
+summary: 移动端流水线首先需要「阻止」什么，而不是「做」什么——版本闸门、不放在任何人电脑上的签名密钥、完整固定的工具链，以及为什么混淆符号是构建产物的一部分。
+publishedAt: "2026-08-18"
+category: infra
+tags:
+  - flutter
+  - ci-cd
+  - github-actions
+  - ios
+  - android
+draft: false
+---
+
+手工发布移动应用出错的方式很有特点：从来不在构建时，总在之后。产物出来了，上架了，
+三天后有人发现那个版本是用另一个环境的密钥编译的，或者 build 号重复了，或者崩溃报告
+拿到手完全读不懂——因为混淆符号留在了当时执行构建那个人的机器上。
+
+正因为如此，我把一个 Flutter 应用的交付从零重建了一遍。我会继续用前几篇文章里的拍卖应用
+作为例子——Android 与 iOS、三套环境、用 GitHub Actions 做校验，用 Codemagic 跑需要
+macOS 的构建。
+
+## 流水线存在的意义是阻止，而不是执行
+
+最常见的认知错误，是把 CI 当作任务自动化：「以前这些命令我自己跑，现在机器来跑」。
+如果仅止于此，你只是把手工劳动换成了更快的手工劳动，而错误的发布依然会发生——只是
+效率更高了。
+
+价值在闸门上。每一个**拒绝**继续往下走的步骤，才是把「交付」变成「可信流程」的东西。
+其余部分都只是便利。
+
+## 版本闸门
+
+为我省下最多时间的闸门也是最简单的那个：如果 `pubspec.yaml` 里的版本相对已发布版本
+没有上升，构建根本不会开始。
+
+```yaml
+- name: 校验版本号是否已递增
+  script: |
+    set -euo pipefail
+    current=$(grep '^version:' pubspec.yaml | awk '{print $2}')
+    published=$(cat .ci/last-published)
+    if [ "$current" = "$published" ]; then
+      echo "版本 $current 已发布过 —— 请先递增 pubspec"
+      exit 1
+    fi
+```
+
+它看着像官僚流程，直到你算一下反面的代价：同时构建 iOS 与 Android 需要几十分钟，而在
+**商店审核校验阶段**才发现版本号重复，意味着整个周期报废。十秒钟失败，好过四十分钟
+失败。
+
+注意那句 `set -euo pipefail`。文章结尾我会回到它。
+
+## 签名不能住在任何人的电脑里
+
+只要 Android 签名密钥还放在某个人的笔记本上，你就没有流水线——你有的是一个人。而那台
+笔记本，也是唯一能产出发布版本的地方。
+
+可行的做法，是把加密后的 keystore 放进仓库，在 runner 上解密，口令则来自变量保管库：
+
+```yaml
+- name: 解密 Android 签名密钥
+  script: |
+    set -euo pipefail
+    gpg --batch --yes --passphrase "$KEYSTORE_PASSPHRASE" \
+        --decrypt --output android/app/upload.keystore \
+        android/app/upload.keystore.gpg
+```
+
+这里有一个坑，让我损失了一个下午：**Codemagic 的 macOS 镜像里并不自带 GPG**。这个
+步骤会在本地明明能跑通的命令上报出 "command not found"，而错误信息完全不会提示问题
+出在 runner。于是安装 GPG 变成了工作流的第一步。
+
+iOS 的情况不同，因为苹果已经在他们那侧解决了：描述文件与证书来自签名服务，你要配置的
+是访问权限，而不是文件。
+
+## 固定整条工具链，而不是固定一半
+
+这是我犯过、而且维持了太久的错误：
+
+```yaml
+environment:
+  flutter: 3.32.1      # 已固定
+  cocoapods: 1.15.2    # 已固定
+  xcode: latest        # ……意外就藏在这里
+```
+
+固定了 Flutter 与 CocoaPods，却让 Xcode 停留在 `latest`，意味着你的「可复现构建」只能
+复现到苹果发布新版本为止。然后，在某个普通的周二，在你没有提交任何代码的情况下，流水线
+崩了——而你会先去自己的代码里找元凶。
+
+要么全部固定，并承担主动升级的成本；要么全部浮动，并接受它偶尔会坏。中间状态是两者
+最糟的组合：毫无预警地坏掉，而你不会怀疑真正的原因。
+
+## 三套环境：一种诚实的重复
+
+我保留三个几乎完全相同的工作流——`deploy-dev`、`deploy-stg` 与 `deploy-prod`——并且
+刻意没有把它们合并成一个带参数的任务。
+
+想统一的冲动很强，而代价出现得很快：一个按环境参数化的工作流会不断累积条件判断，而
+流水线正是「写错一个 `if`」代价最高的地方。测试里的 `if` 写错，你得到一个失败的构建；
+发布流水线里的 `if` 写错，你把错误的环境发上了商店。
+
+配置的重复不等于知识的重复。我宁愿从头到尾读三个文件，也不愿在脑子里模拟一个文件。
+
+我**不**重复的部分，是真正产出构建物的那一段：AAB 构建、通用 APK 构建与 IPA 构建，是
+同一个脚本用不同参数调用的。通用 APK 之所以存在，是因为内部测试与商店外分发需要它——
+AAB 是发往应用商店的格式，但它没法直接装到 QA 的手机上。
+
+## 混淆符号是构建产物的一部分
+
+如果你对构建做了混淆——你也应该这么做——那么没有符号映射，崩溃报告就毫无用处。把这份
+映射与每个发布产物一起打包，才是「我们启用了混淆」与「我们启用了混淆并且仍然能排查
+问题」之间的区别。
+
+```yaml
+artifacts:
+  - build/app/outputs/bundle/**/*.aab
+  - build/ios/ipa/*.ipa
+  - build/symbols/**            # 没有它，线上崩溃就只能靠猜
+```
+
+我是以错误的顺序意识到这件事有多重要的——当时正盯着一份完全没有方法名的调用栈。
+
+## 只测试发生变化的部分
+
+在一个包含多个应用的仓库里，每个 PR 都跑完整测试套件是一种浪费，它会先变成习惯，再变成
+被默认接受的缓慢。在前面加一个检测任务就能解决：
+
+```yaml
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      app: ${{ steps.filter.outputs.app }}
+    steps:
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api: ['apps/api/**', 'packages/shared/**']
+            app: ['apps/app/**', 'packages/shared/**']
+
+  test-api:
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    steps: [...]
+```
+
+注意 `packages/shared` 同时出现在两个过滤规则里。共享边界会同时触发两侧，这是有意的——
+多跑的代价是几分钟，少跑的代价是线上的一个缺陷。
+
+## 基础设施：PR 上跑 `plan`，按钮触发 `apply`
+
+对于属于基础设施的部分，同一条流水线刻意使用两个不同的触发方式：`terraform plan` 在
+pull request 上自动运行，而 `apply` 只在手动触发时执行。
+
+```yaml
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request'
+  apply:
+    if: github.event_name == 'workflow_dispatch'
+```
+
+在合并时自动执行 `apply` 看起来很优雅，而它正是生产数据库在某个周五傍晚被摧毁的方式。
+
+## 流水线是代码，也会像代码一样出错
+
+我曾不得不紧急修补自己写的发布工作流，这两个修复比任何泛泛而谈的建议都更有价值：
+
+**缺少 git 身份。** 工作流会创建版本递增的提交，然后失败，因为 runner 上没有配置
+`user.name`。事后显而易见，事前完全看不见。
+
+**缺少 `pipefail`。** 某个步骤使用了 `某命令 | grep 模式`，即使左侧命令失败，它仍然会
+以成功状态继续往下走——因为在 shell 里，管道的退出码取自最后一个命令。于是流水线在一个
+其实什么都没做的步骤上亮了绿灯。
+
+结论很无聊，但也是真的：流水线脚本值得与生产代码同等的谨慎。每个步骤顶部都写上
+`set -euo pipefail`，并对任何「通过得太快」的步骤保持长期怀疑。
+
+## 如果重做，我会怎么改
+
+我会从闸门开始，而不是从构建开始。最初几天我都在让构建在 runner 上跑通——那是有趣的
+部分——之后才去思考流水线应该拒绝什么。反过来的顺序，本可以免费拦住两次错误的发布。
+
+另外，我会先做度量。如果不知道交付原本需要多长时间、有多少步骤依赖某个人记得某件事，
+就无法判断交付到底有没有变好。我当时没有把这些记录下来，所以今天我只能说它变好了——
+却没法拿出证据。

@@ -1,0 +1,67 @@
+{
+  "site": {
+    "name": "Gustavo Alecio",
+    "role": "mobile engineering",
+    "description": "Mobile engineer — Flutter, Android and iOS in real-time applications."
+  },
+  "nav": {
+    "home": "Home",
+    "projects": "Work",
+    "blog": "Blog",
+    "about": "About",
+    "language": "Language"
+  },
+  "home": {
+    "available": "Available for consulting",
+    "headlineStart": "Mobile apps that respond in",
+    "headlineAccent": "real time",
+    "headlineEnd": "",
+    "lede": "Seven years across Flutter, Android and iOS, in domains where latency is a requirement rather than a vanity metric: live odds, regulated push, streams held open for hours.",
+    "ctaProjects": "See the work",
+    "ctaBlog": "Read the blog",
+    "featured": "Featured project",
+    "latest": "Recent writing",
+    "allProjects": "All projects",
+    "allPosts": "All articles",
+    "ctaAbout": "About me"
+  },
+  "projects": {
+    "title": "Work",
+    "lede": "Every project with a short screen recording and the measures that matter — before and after.",
+    "inProduction": "In production",
+    "caseStudy": "Case study",
+    "next": "Next project",
+    "measures": "Measures",
+    "present": "present"
+  },
+  "blog": {
+    "title": "Blog",
+    "lede": "What I learned, written down before I forget it.",
+    "readingTime": "{minutes} min read",
+    "onThisPage": "On this page",
+    "read": "Read article",
+    "empty": "No articles in this language yet.",
+    "fallbackLabel": "EN pending",
+    "fallbackNotice": "The English translation of this article isn't out yet. You're reading the original version.",
+    "categories": {
+      "flutter": "Flutter",
+      "arquitetura": "Architecture",
+      "performance": "Performance",
+      "infra": "Infra",
+      "seguranca": "Security"
+    }
+  },
+  "about": {
+    "title": "About",
+    "howIWork": "How I work",
+    "timeline": "Track record",
+    "talk": "Get in touch",
+    "email": "Send an email",
+    "cv": "Download CV",
+    "portraitSlot": "portrait slot",
+    "tools": "Tools I work with"
+  },
+  "footer": {
+    "rights": "© {year} Gustavo Alecio"
+  }
+}

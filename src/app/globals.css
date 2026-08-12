@@ -1,26 +1,293 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ==========================================================================
+   CAMADA SEMÂNTICA — o único vocabulário que os componentes conhecem.
+   Nenhum componente escreve valor de cor literal.
+   ========================================================================== */
+@theme {
+  --color-bg: #f6f6f7;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1f1f3;
+  --color-recess: #eaeaec;
+  --color-code-bg: #14161a;
+  --color-code-bg-2: #1c1f25;
+
+  --color-line: rgba(24, 24, 27, 0.09);
+  --color-line-strong: rgba(24, 24, 27, 0.17);
+
+  --color-fg: #18181b;
+  --color-fg-2: #52525b;
+  --color-fg-3: #6e6e76;
+  --color-fg-prose: #3f3f46;
+
+  /* teal em três tons: no claro, o mesmo verde não serve para texto e para fundo */
+  --color-teal: #0b7c69;
+  --color-teal-solid: #0e9480;
+  --color-teal-deep: #095e50;
+  --color-teal-line: rgba(11, 124, 105, 0.26);
+  --color-teal-wash: rgba(11, 124, 105, 0.07);
+
+  --color-violet: #7c3aed;
+  --color-violet-line: rgba(124, 58, 237, 0.24);
+  --color-violet-wash: rgba(124, 58, 237, 0.06);
+
+  --color-amber: #a16207;
+  --color-amber-line: rgba(161, 98, 7, 0.26);
+  --color-amber-wash: rgba(161, 98, 7, 0.07);
+
+  /* segurança: matiz de risco, a convenção que o leitor já lê sem legenda */
+  --color-rose: #a81d4f;
+  --color-rose-line: rgba(168, 29, 79, 0.24);
+  --color-rose-wash: rgba(168, 29, 79, 0.06);
+
+  --color-on-accent: #ffffff;
+
+  --radius-card: 12px;
+  --radius-control: 8px;
+
+  /* elevação: substitui o glow da versão escura */
+  --shadow-e1: 0 1px 2px rgba(24, 24, 27, 0.05);
+  --shadow-e2:
+    0 1px 2px rgba(24, 24, 27, 0.05), 0 8px 20px -8px rgba(24, 24, 27, 0.12);
+  --shadow-e3:
+    0 2px 4px rgba(24, 24, 27, 0.06), 0 18px 34px -14px rgba(24, 24, 27, 0.18);
+
+  --ease-ui: cubic-bezier(0.22, 0.68, 0.24, 1);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-cjk:
+    var(--font-noto-sc), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background: rgba(11, 124, 105, 0.16);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-teal);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  /* ------------------------------------------------------------------------
+     CJK — nem Inter nem JetBrains Mono cobrem chinês, caixa alta não existe,
+     e tracking apertado ou largo destrói a leitura.
+     ------------------------------------------------------------------------ */
+  [lang^="zh"] {
+    --font-sans: var(--font-cjk);
+    line-break: strict;
+    word-break: normal;
+    overflow-wrap: normal;
+  }
+  [lang^="zh"] :is(h1, h2, h3, h4) {
+    letter-spacing: 0;
+    line-height: 1.4;
+  }
+  [lang^="zh"] :is(p, li) {
+    line-height: 1.85;
+    letter-spacing: 0.01em;
+  }
+  /* rótulos: caixa alta é no-op em CJK, então respiro leve substitui o tracking */
+  [lang^="zh"] .label {
+    font-family: var(--font-cjk);
+    text-transform: none;
+    letter-spacing: 0.05em;
+    font-size: 12px;
+  }
+  /* itálico não existe em CJK: ênfase por peso */
+  [lang^="zh"] :is(em, i) {
+    font-style: normal;
+    font-weight: 600;
+  }
+  /* número e código seguem latinos e tabulares */
+  [lang^="zh"] :is(code, pre, .tabular) {
+    font-family: var(--font-mono);
+    letter-spacing: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* rótulo mono: a voz de "medida" do sistema */
+  .label {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-fg-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------------------------------------------------------------------
+     Prose — o único lugar do sistema que estiliza tags HTML nuas.
+     Todo MDX renderizado passa por aqui.
+     --------------------------------------------------------------------- */
+  .prose {
+    max-width: 66ch;
+  }
+  .prose > :first-child {
+    margin-top: 0;
+  }
+  .prose h2 {
+    margin: 40px 0 14px;
+    font-size: 25px;
+    line-height: 1.2;
+    letter-spacing: -0.028em;
+    font-weight: 700;
+    scroll-margin-top: 84px;
+  }
+  .prose h3 {
+    margin: 30px 0 11px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-teal);
+    font-weight: 500;
+    scroll-margin-top: 84px;
+  }
+  .prose p {
+    margin: 0 0 18px;
+    font-size: 17px;
+    line-height: 1.72;
+    color: var(--color-fg-prose);
+  }
+  .prose :is(ul, ol) {
+    margin: 0 0 18px;
+    padding-left: 22px;
+    display: grid;
+    gap: 7px;
+  }
+  .prose ul {
+    list-style: disc;
+  }
+  .prose ol {
+    list-style: decimal;
+  }
+  .prose li {
+    font-size: 17px;
+    line-height: 1.62;
+    color: var(--color-fg-prose);
+  }
+  .prose strong {
+    color: var(--color-fg);
+    font-weight: 600;
+  }
+  .prose a {
+    color: var(--color-teal);
+    text-decoration: none;
+    border-bottom: 1px solid var(--color-teal-line);
+    transition: background 200ms var(--ease-ui);
+  }
+  .prose a:hover {
+    border-bottom-color: var(--color-teal);
+    background: var(--color-teal-wash);
+  }
+  /* rehypeAutolinkHeadings embrulha o título num <a>: o link do heading é
+     âncora de navegação, não link de leitura, então não herda o estilo de link */
+  .prose :is(h2, h3) a {
+    color: inherit;
+    border-bottom: 0;
+    text-decoration: none;
+  }
+  .prose :is(h2, h3) a:hover {
+    background: transparent;
+    color: var(--color-teal);
+  }
+  .prose :not(pre) > code {
+    font-family: var(--font-mono);
+    font-size: 0.84em;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-line);
+    padding: 2px 6px;
+    border-radius: 6px;
+    color: var(--color-teal);
+  }
+  .prose blockquote {
+    margin: 24px 0;
+    padding: 15px 19px;
+    border-radius: var(--radius-control);
+    border: 1px solid var(--color-violet-line);
+    background: var(--color-violet-wash);
+    font-size: 17px;
+    line-height: 1.52;
+    color: var(--color-fg);
+  }
+  .prose blockquote p:last-child {
+    margin-bottom: 0;
+  }
+  /* código escuro sobre página clara: contraste deliberado */
+  .prose pre {
+    margin: 22px 0;
+    padding: 17px 19px;
+    overflow-x: auto;
+    background: var(--color-code-bg) !important;
+    border: 1px solid rgba(24, 24, 27, 0.14);
+    border-radius: var(--radius-control);
+    box-shadow: var(--shadow-e1);
+    font-size: 13px;
+    line-height: 1.72;
+    /* fallback obrigatório: bloco sem linguagem não recebe token do Shiki e
+       herdaria a cor de corpo — texto quase preto sobre fundo escuro */
+    color: #c9cdd3;
+  }
+  .prose pre code {
+    font-family: var(--font-mono);
+    display: grid;
+  }
+  .prose figure {
+    margin: 24px 0;
+    display: grid;
+    gap: 9px;
+  }
+  .prose figcaption {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-fg-3);
+  }
+  .prose table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+    margin: 22px 0;
+  }
+  .prose :is(th, td) {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--color-line);
+  }
+  .prose th {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-fg-3);
+    font-weight: 400;
+    background: var(--color-surface-2);
+  }
 }

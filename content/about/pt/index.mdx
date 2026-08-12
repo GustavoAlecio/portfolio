@@ -1,0 +1,111 @@
+---
+lede: "Engenheiro mobile especializado em Flutter desde 2017. Lidero time sem sair do código, e o problema que mais me interessa é o que aparece quando Flutter acaba e começa o nativo."
+headline: Especialista Flutter · Líder técnico · Gerente de engenharia mobile
+location: Cuiabá, MT · Brasil
+email: gustavo.alecio2@live.com
+contact: "Aberto a posições sênior em Flutter, arquitetura mobile e gestão de engenharia mobile, incluindo time internacional, remoto ou realocação. Também atuo como contratado independente (PJ/CNPJ), com disponibilidade para fusos das Américas, Europa e Ásia."
+links:
+  - label: GitHub
+    href: "https://github.com/GustavoAlecio"
+  - label: LinkedIn
+    href: "https://linkedin.com/in/gustavoalecio"
+tools:
+  - group: Flutter e Dart
+    note: Onde escrevo a maior parte do código, desde 2017.
+    items: [Flutter, Dart, BLoC, Cubit, freezed, go_router, Isolates, deep links]
+  - group: iOS nativo
+    note: Swift de verdade, não só ponte — widget, extensão e ciclo de vida.
+    items: [Swift, ActivityKit, WidgetKit, Dynamic Island, StoreKit, CarPlay, APNs, Platform Channels]
+  - group: Android
+    note: Camada de integração e configuração. Kotlin não é minha linguagem principal.
+    items: [Platform Channels, Gradle, FCM, Play Billing, ProGuard/R8]
+  - group: Arquitetura e testes
+    note: Pacotes modulares com fronteira de dependência declarada.
+    items: [Clean Architecture, DDD, SOLID, TDD, mocktail, bloc_test]
+  - group: Tempo real e dados
+    items: [gRPC, protobuf, WebSocket, REST, GraphQL, PostgreSQL, Prisma, Hive]
+  - group: Estabilidade e entrega
+    note: Publicação de versão como processo automatizado, não como tarde de trabalho manual.
+    items: [Firebase Crashlytics, Firebase Performance, GitHub Actions, Codemagic, Fastlane]
+  - group: Produto e monetização
+    items: [Amplitude, CleverTap, ButterCMS, Stripe, in_app_purchase, Google Mobile Ads]
+  - group: IA no fluxo
+    note: Uso diário e desenho de fluxo para o time inteiro.
+    items: [Claude Code, agentes, portão de documentação no CI]
+principles:
+  - title: Fronteira de módulo é explícita ou não existe
+    body: Pacote só se sustenta quando a dependência entre eles é declarada e verificável. Sem isso, "modular" é organização de pasta.
+  - title: Estabilidade é trabalho, não sorte
+    body: Crash tem causa raiz, e causa raiz aparece em cluster de Crashlytics, não em palpite. Tratar publicação como evento de engenharia mudou mais o produto que qualquer refactor.
+  - title: Publicar não pode depender de gente lembrando
+    body: Enquanto subir versão exige alguém seguindo um passo a passo, a frequência de entrega é limitada pela agenda dessa pessoa. Automatizar assinatura e envio é decisão de arquitetura.
+  - title: Documentação com portão no CI
+    body: Documento que ninguém é obrigado a atualizar apodrece. Amarrar a documentação de arquitetura a uma verificação no pipeline é o que a mantém verdadeira.
+timeline:
+  - when: 2024 — hoje
+    org: R10 Score
+    role: Gerente de engenharia mobile
+    body: Plataforma de dados esportivos em tempo real. Lidero o time mobile mantendo contribuição direta em Flutter e Swift.
+    stack: [Flutter, Swift, ActivityKit, WebSocket, GitHub Actions]
+  - when: 2022 — 2024
+    org: Genial Investimentos
+    role: Desenvolvedor Flutter sênior
+    body: Aplicativo de investimento com volume alto, sob regulação financeira. Via TIVIT e depois Squad Premium.
+    stack: [Flutter, Cubit, REST, CMS]
+  - when: 2021 — 2022
+    org: Osiris Agtech
+    role: Desenvolvedor Flutter · meio período
+    body: Automação de hidroponia e comércio eletrônico integrado, com monitoramento e controle pelo celular.
+    stack: [Flutter, MobX, GraphQL, PostgreSQL]
+  - when: 2017 — 2022
+    org: Fundação Uniselva
+    role: Desenvolvedor Flutter · meio período
+    body: Responsável sozinho pelo Recoopsol, plataforma de comércio eletrônico de cooperativa, do aplicativo ao servidor.
+    stack: [Flutter, Django, PostgreSQL]
+---
+
+Construo aplicativos móveis desde 2017, quase sempre em Flutter, e o que fiz nesse
+tempo vai de aplicativo de cooperativa mantido sozinho a placar esportivo ao vivo
+com Live Activities escritas em Swift. No caminho: automação de estufa controlada
+pelo celular, jornadas de investimento em ambiente regulado, um aplicativo quebrado
+em treze pacotes modulares, entrega manual virando processo automatizado, e uma
+passagem de desenvolvedor sênior a gerente de engenharia mobile em cinco meses. Em
+paralelo, entrego produtos completos na minha própria consultoria — aplicativo, API,
+banco e infraestrutura.
+
+Comecei em 2017 na Fundação Uniselva, e comecei sozinho: o Recoopsol, plataforma de
+comércio eletrônico de uma cooperativa, era meu do aplicativo Flutter até o servidor
+em Django com PostgreSQL. Não tinha ninguém pra revisar meu código — péssimo pra
+qualidade, ótimo pra aprender consequência. Em 2021 somei a Osiris Agtech, onde o
+problema era mais físico: automação de hidroponia, com irrigação, solução nutritiva
+e sensores controlados pelo celular. Foi ali que usei MobX e Clean Architecture pela
+primeira vez em aplicativo de verdade, e mexi no que estava atrás — modelagem de
+dados com GraphQL, Prisma e PostgreSQL. Cinco anos aprendendo que aplicativo é a
+ponta visível de um sistema.
+
+Em 2022 entrei na Genial Investimentos, primeiro pela TIVIT e depois pela Squad
+Premium — dois anos e meio num aplicativo de investimento com volume alto e pouca
+margem pra erro. Trabalhei em cartão de crédito, boleto, produtos de seguro e
+conteúdo servido por CMS, com Cubit para estado e EventBus para conversa entre
+funcionalidades que não se conheciam. Foi onde aprendi a fazer animação e transição
+que aguentam produção, a construir componente pensando em quem vai reusar, e a
+operar sob regulação financeira com design, servidor e QA no mesmo ciclo. Também
+foi onde ficou claro que eu queria decidir arquitetura, não só implementar a que já
+estava lá.
+
+Entrei na R10 Score em outubro de 2024 como sênior; um mês depois liderava o time,
+cinco meses depois respondia pela engenharia mobile. O que me levou lá foi assumir
+o nativo: em Swift, com ActivityKit e WidgetKit, escrevi o cronômetro que acompanha
+a fase da partida, a contagem regressiva antes do apito, a tabela mudando de posição
+ao vivo e a disputa de pênalti atualizando na tela de bloqueio cobrança por cobrança
+— com o aplicativo Flutter do outro lado, conversando por Platform Channel. No
+Android meu papel é a integração: Gradle, FCM, Billing, canal de plataforma. Depois
+vieram as coisas que não aparecem na tela e sustentam o resto — treze pacotes com
+fronteira de dependência declarada, notificação isolada em pacote próprio, compra
+dentro do aplicativo com StoreKit, gRPC e WebSocket para dado que precisa chegar
+agora, Crashlytics guiando correção de verdade, e publicação de versão deixando de
+ser ritual manual. No mesmo período, na consultoria: controle de perdas com mobile
+em Flutter e web em React, plataforma multi-tenant em NestJS com Prisma, pipeline de
+odds com cálculo de EV, Terraform e CI. Escrevo aqui sobre o que sobreviveu a
+produção e o que eu faria diferente — metade do que sei veio de gente que teve o
+trabalho de escrever.

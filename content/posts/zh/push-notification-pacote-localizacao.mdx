@@ -1,0 +1,256 @@
+---
+title: "把推送通知独立成包：按平台拆分的 driver，以及服务端并不知道的语言"
+summary: 为什么推送无法只在 Dart 里解决、如何把通知隔离成一个带平台 driver 与假 driver 的包，以及没人提前告诉你的那个问题——把通知翻译成用户在应用内选择的语言，而不是系统语言。
+publishedAt: "2026-09-01"
+category: arquitetura
+tags:
+  - flutter
+  - ios
+  - android
+  - push
+draft: false
+---
+
+推送通知看起来像一个功能，实际上是一条边界。它从服务端出发，穿过两个不同的平台服务，
+由在你的应用已经死掉时仍然运行的原生代码负责展示，然后——如果用户点了它——才回到
+Dart。
+
+我继续用前几篇文章里的拍卖应用。真正重要的通知是「你的出价被超越了」、「拍卖将在五分钟后
+结束」和「你赢了」——而这三条都必须以用户在应用内所选择的语言送达。
+
+## 推送无法只在 Dart 里解决
+
+第一反应是去找一个用 Dart 搞定一切的包。它不存在，而原因是结构性的：**通知到达时，你的
+Dart 代码可能根本没在运行**。应用在后台是一种情况，被系统杀掉是另一种。决定屏幕上出现
+什么的是操作系统，依据是 payload 与原生代码。
+
+这会改变设计。与其写「一个负责推送的类」，真正有效的是一条明确的边界：Dart 声明它需要
+什么，而每个平台各自去实现。
+
+## 这个包：领域在中间，平台在两端
+
+我把通知隔离成一个独立的包，而这样的组织方式在第一次维护时就已经回本：
+
+```
+push_notification/
+  domain/           契约、带类型的失败、通知究竟是什么
+  application/      负责编排的服务，完全不了解平台
+  infrastructure/   在后端完成设备注册
+  platform/         android_push_driver · ios_push_driver · mock_push_driver
+```
+
+driver 是一个很窄的接口，而「窄」正是重点：
+
+```dart
+abstract interface class PushDriver {
+  Future<String?> requestToken();
+  Future<void> subscribe(String topic);
+  Future<void> unsubscribe(String topic);
+  Stream<PushOpened> get opened;
+}
+```
+
+第三个 driver——那个假的——是我最想推荐的。推送是最难测的功能：需要真机、需要已授予的
+权限、需要服务端配合，还需要耐心。有了假 driver，边界之上的所有流程（订阅主题、处理点击、
+导航）都可以在几秒内测完，跑在 CI 里，完全不触碰任何原生代码。
+
+带类型的失败带来的帮助比想象中更大：
+
+```dart
+sealed class PushFailure {
+  const PushFailure();
+}
+
+final class PermissionDenied extends PushFailure {}
+final class TokenUnavailable extends PushFailure {}
+final class TopicRejected extends PushFailure {
+  const TopicRejected(this.topic);
+  final String topic;
+}
+```
+
+「注册失败」对客服来说是毫无用处的信息。「权限被拒绝」和「token 不可用」是两个原因不同、
+解决方式也不同的问题。
+
+## 服务端并不知道的语言
+
+这里是没人提前告诉你的那个问题，而它有两层。
+
+第一层：**如果用户在应用内选择了语言，服务端并不知道**——除非你告诉它。而且不要在发送
+时才告诉它；要在设备注册时连同 token 一起告诉它，并在用户切换语言时同步更新：
+
+```dart
+Future<void> registerDevice() async {
+  final token = await driver.requestToken();
+  if (token == null) return;
+
+  await repository.register(
+    token: token,
+    // 语言是设备的属性，而不是某一次发送的属性
+    locale: appLocale.current,       // pt-BR, en, zh-Hans
+    platform: currentPlatform,
+  );
+}
+```
+
+第二层才是真正难受的：**系统语言不等于应用语言**。一个 iPhone 系统是英文的人，完全可能在
+你的应用里选择了中文，而他期望在锁屏上看到的正是中文。所有原生的格式化 API 默认给你的，
+都是系统语言。
+
+## 四种策略，以及决定取舍的那个问题
+
+这个问题不是技术问题，而是归属问题：**文案由谁拥有，服务端还是应用？** 其余的一切都由
+它推导出来。
+
+**1. 直接发送成品文案，按注册的语言。** 服务端完成翻译，把标题与正文写好后发送。简单、
+应用被杀掉时也能工作、payload 很小。但它完全依赖注册的 locale 是正确的。
+
+**2. 多语言 payload。** 服务端把所有语言都发过来，由客户端挑选：
+
+```json
+{
+  "data": {
+    "title": {
+      "pt-BR": "Seu lance foi superado",
+      "en": "You've been outbid",
+      "zh-Hans": "你的出价被超越了"
+    }
+  }
+}
+```
+
+它解决了语言问题，而且**不依赖注册信息是否及时更新**，这正是它真正的优势。三种语言完全
+放得下——APNs 的 4 KB 限制只有在语言列表变长、或正文很长时才开始吃紧。真正的代价不是
+体积：而是你要传输三份内容才能送达一份，并且文案目录从此住在服务端。
+
+**3. 发送 key 与参数。** 服务端发送 `type`、数值与标识；由客户端组装句子。
+
+```json
+{
+  "aps": {
+    "mutable-content": 1,
+    "alert": {
+      "title": "你的出价被超越了",
+      "body": "点击查看这场拍卖"
+    }
+  },
+  "data": {
+    "type": "bid_outbid",
+    "auctionId": "a_8123",
+    "amount": "1850.00",
+    "currency": "CNY",
+    "itemTitle": "复古手表"
+  }
+}
+```
+
+这两个块都是必需的，各自承担不同的职责。`aps` 是在没有任何人改写内容时系统会展示的东西
+——缺少它，iOS 会把这次发送当作静默推送，**屏幕上什么都不会出现**。而 `data` 是客户端
+用来组装最终文案的部分。
+
+**4. `loc-key` 与 `loc-args`。** 平台其实早就提供了解法，而几乎没有人使用。payload 携带
+一个 key 与参数，由**系统**去应用的 bundle 里查找对应字符串——完全不需要 extension：
+
+```json
+{
+  "aps": {
+    "alert": {
+      "loc-key": "bid_outbid_body",
+      "loc-args": ["¥1,850.00", "复古手表"]
+    }
+  }
+}
+```
+
+在 FCM 中对应的是 `title_loc_key` 与 `body_loc_args`。这是所有方案里成本最低的一种——
+而它有一个决定成败的前提：**它是按 bundle 的语言解析的**，也就是系统语言，而不是用户在你
+的应用里选择的语言。只有当你的语言切换器会修改 `UserDefaults` 中的 `AppleLanguages` 时它
+才成立，而大多数 Flutter 应用并不会这么做——它们只是在 Dart 侧切换 locale，原生 bundle
+对此一无所知。
+
+---
+
+我选了第三种，判断标准就是文案的归属。当应用是拥有者时：句子跟随用户实际安装的版本，而不是
+服务端假设的版本；货币与数字的格式会按 locale 自动正确，服务端不需要了解每种语言的书写
+习惯；修改一句写得不好的文案，是发一个应用版本，而不是迁移所有已排期的消息。
+
+如果你的情况正好相反——消息数量多、随活动频繁变化、而且由从不打开代码仓库的人来撰写——
+那么拥有者就应该是服务端，此时第二种策略是最诚实的选择：它能送达正确的语言，而不要求设备
+注册信息始终完美。
+
+第三种的代价也是真实的，值得说清：**两侧都需要原生代码**，而在 iOS 上还需要一个新的
+target。
+
+## 在 iOS 上，展示前翻译需要一个 extension
+
+要在通知出现之前修改它的内容，payload 必须请求许可，而你需要一个 Notification Service
+Extension：
+
+```json
+{ "aps": { "mutable-content": 1, "alert": { "title": "…", "body": "…" } } }
+```
+
+这里的 `alert` 仍然是前面示例里的兜底文案：如果 extension 失败，用户看到的就是它。
+
+于是你会遇到与 Live Activity 完全相同的问题：**extension 是另一个进程，不会继承应用内所
+选择的语言**。解决办法也相同——应用把这个选择写进 App Group container，extension 在组装
+文本之前从那里读取。
+
+```swift
+final class NotificationService: UNNotificationServiceExtension {
+    override func didReceive(
+        _ request: UNNotificationRequest,
+        withContentHandler handler: @escaping (UNNotificationContent) -> Void
+    ) {
+        let content = request.content.mutableCopy() as! UNMutableNotificationContent
+        // 语言来自 App Group，而不是 Locale.current
+        let locale = SharedLocale.readFromAppGroup() ?? "en"
+        content.title = Strings.title(for: content.userInfo, locale: locale)
+        content.body  = Strings.body(for: content.userInfo, locale: locale)
+        handler(content)
+    }
+}
+```
+
+有一件事值得事先知道：如果 extension 超时或失败，系统会展示 payload 里原本的内容。也就是
+说，**即使你使用 key 的方案，也要在 payload 里带上一份合理的兜底文案**——否则这次失败会以
+一条空白通知的形式出现在用户眼前。
+
+在 Android 上路径更直接，因为展示本身就在你的掌控之中：我把通知的构建集中到了原生侧的一个
+位置，由它从共享存储读取所选语言，并在发布到通道之前组装标题、正文与图片。
+
+## 主题还是 token：两个都要，用在不同的事情上
+
+主题用于集体性的内容：「所有关注这场拍卖的人」。token 用于个体性的内容：「你的出价被超越
+了」。把两者混用，就是「错误的通知发给错误的人」的来源。
+
+而主题还有一个状态陷阱：**订阅主题是服务端的操作，不是应用的操作**。如果用户静音了某场
+拍卖，事实来源是服务端——而不是本地偏好，后者在重装应用或更换设备之后总是会出现偏差。我
+花了一段时间才把「静音」和「收藏」当作远端状态来处理，之后不一致就消失了。
+
+## 必须在应用死掉之后仍然存活的 payload
+
+这个场景只在线上出问题，在开发中从不出问题：通知到达，应用已被杀掉，用户点击。系统从零
+启动应用——而触发这次点击的 payload，会在组件树存在之前就抵达。
+
+如果你在那一刻尝试导航，根本没有可以导航过去的地方。解决办法是在原生侧保存最后一次后台
+payload，并在 Dart 告知自己已就绪时再交付它：
+
+```dart
+Future<void> onAppReady() async {
+  final pending = await driver.consumePendingOpen();
+  if (pending != null) router.handle(pending.deepLink);
+}
+```
+
+注意这个 `consume`：交付并清除。没有被消费的 payload 会在下次启动时再次打开同一个页面，
+而用户完全不理解应用为什么执意要打开一场已经结束的拍卖。
+
+## 如果重做，我会怎么改
+
+我会从第一天起就把语言注册到设备上。我最初采用的是由服务端发送成品文案，等到应用有了第二
+种语言时才发现语言的问题，而事后重做，代价是 iOS 上一个新的 extension，以及一次对所有已
+排期消息的迁移。
+
+另外，我会在写真正的 driver 之前先写那个假的。我把它放到了最后才写，只为了能做测试——后来
+才意识到，如果先写它，接口会由它来定义，而不是由我恰好第一个接入的那家推送服务来定义。

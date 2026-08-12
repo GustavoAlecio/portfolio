@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# o contrato de env é documentação: valor é falso, e sem ele ninguém sabe
+# quais variáveis o app precisa
+!.env.example

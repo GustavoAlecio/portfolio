@@ -1,0 +1,219 @@
+---
+title: "CI/CD de app Flutter: do build manual ao pipeline em que você confia"
+summary: O que um pipeline mobile precisa impedir antes de precisar fazer — portão de versão, assinatura sem segredo em máquina de ninguém, toolchain fixada inteira e por que símbolo de ofuscação é parte do artefato.
+publishedAt: "2026-08-18"
+category: infra
+tags:
+  - flutter
+  - ci-cd
+  - github-actions
+  - ios
+  - android
+draft: false
+---
+
+Publicar app mobile à mão tem um jeito característico de dar errado: nunca no
+build, sempre depois. O artefato sai, sobe pra loja, e três dias depois alguém
+descobre que aquela versão foi compilada com a chave de outro ambiente, ou que o
+número de build repetiu, ou que o relatório de crash chegou ilegível porque o
+símbolo de ofuscação ficou na máquina de quem rodou.
+
+Reconstruí a entrega de um app Flutter do zero por causa disso. Vou usar o mesmo
+app de leilão dos artigos anteriores como exemplo — Android e iOS, três ambientes,
+GitHub Actions para validação e Codemagic para os builds que precisam de macOS.
+
+## O pipeline existe para impedir, não para fazer
+
+O erro de enquadramento mais comum é tratar CI como automação de tarefa: "antes eu
+rodava esses comandos, agora a máquina roda". Se for só isso, você trocou trabalho
+manual por trabalho manual mais rápido, e continua publicando errado — só com mais
+eficiência.
+
+O valor está nos portões. Todo passo que **recusa** avançar é o que transforma
+entrega em processo confiável. O resto é conveniência.
+
+## O portão da versão
+
+O portão que mais me economizou tempo é o mais simples de todos: se a versão no
+`pubspec.yaml` não subiu em relação ao que já está publicado, o build não começa.
+
+```yaml
+- name: Validar bump de versão
+  script: |
+    set -euo pipefail
+    atual=$(grep '^version:' pubspec.yaml | awk '{print $2}')
+    publicada=$(cat .ci/last-published)
+    if [ "$atual" = "$publicada" ]; then
+      echo "versão $atual já publicada — suba o pubspec antes"
+      exit 1
+    fi
+```
+
+Parece burocracia até você contar o custo do contrário: build de app com iOS e
+Android leva dezenas de minutos, e descobrir versão repetida **na validação da
+loja** significa perder o ciclo inteiro. Falhar em dez segundos é melhor que
+falhar em quarenta minutos.
+
+Repare no `set -euo pipefail`. Volto nele no fim.
+
+## Assinatura não pode morar na máquina de ninguém
+
+Enquanto a chave de assinatura Android está no notebook de alguém, você não tem
+pipeline — tem uma pessoa. E aquele mesmo notebook é o único lugar onde a release
+sai.
+
+O caminho que funcionou foi guardar o keystore cifrado no próprio repositório e
+decifrar no runner, com a senha vindo do cofre de variáveis:
+
+```yaml
+- name: Decifrar chaves de assinatura Android
+  script: |
+    set -euo pipefail
+    gpg --batch --yes --passphrase "$KEYSTORE_PASSPHRASE" \
+        --decrypt --output android/app/upload.keystore \
+        android/app/upload.keystore.gpg
+```
+
+Aqui mora uma pegadinha que me custou uma tarde: **a imagem macOS do Codemagic não
+vem com GPG**. O passo falha com "command not found" numa etapa que funcionava
+localmente, e a mensagem não sugere em nada que o problema é o runner. Instalar o
+GPG virou o primeiro passo do workflow.
+
+No iOS a história é diferente porque a Apple já resolveu isso do lado dela: perfil
+e certificado vêm do serviço de assinatura, e o que você configura é acesso, não
+arquivo.
+
+## Fixe a toolchain inteira, não metade
+
+Este é o erro que eu cometi e mantive por tempo demais:
+
+```yaml
+environment:
+  flutter: 3.32.1      # fixado
+  cocoapods: 1.15.2    # fixado
+  xcode: latest        # ...e aqui mora a surpresa
+```
+
+Fixar Flutter e CocoaPods e deixar o Xcode em `latest` significa que o seu build
+reproduzível é reproduzível até a Apple lançar uma versão nova. Aí, numa
+terça-feira qualquer, sem nenhum commit seu, o pipeline quebra — e você vai
+procurar o culpado no seu código.
+
+Ou você fixa tudo e assume o custo de atualizar deliberadamente, ou deixa tudo
+flutuando e assume que quebra às vezes. O meio é o pior dos dois: quebra sem
+aviso e você não desconfia da causa.
+
+## Três ambientes: duplicação honesta
+
+Tenho três workflows quase idênticos — `deploy-dev`, `deploy-stg` e `deploy-prod`
+— e não parametrizei em um só de propósito.
+
+A tentação de unificar é forte, e o preço aparece rápido: um workflow
+parametrizado por ambiente acumula condicional, e condicional em pipeline é o
+lugar mais caro para se ter um `if` errado. Errar um `if` num teste dá build
+vermelho; errar num pipeline de release publica ambiente errado na loja.
+
+Duplicação de configuração não é duplicação de conhecimento. Prefiro três arquivos
+que eu leio de cima a baixo do que um arquivo que eu preciso simular na cabeça.
+
+Onde eu **não** duplico é no que produz o artefato: build de AAB, build de APK
+universal e build de IPA são o mesmo script chamado com parâmetro diferente. O APK
+universal existe porque teste interno e distribuição fora da loja precisam dele —
+o AAB é o que vai pra Play Store, mas ele não instala em aparelho de QA.
+
+## Símbolo de ofuscação é parte do artefato
+
+Se você ofusca o build — e deveria — o relatório de crash chega inútil sem o
+mapa de símbolos. Empacotar esse mapa junto do artefato de cada release é o que
+separa "temos ofuscação" de "temos ofuscação e ainda conseguimos depurar".
+
+```yaml
+artifacts:
+  - build/app/outputs/bundle/**/*.aab
+  - build/ios/ipa/*.ipa
+  - build/symbols/**            # sem isso, crash de release é adivinhação
+```
+
+Descobri a importância disso na ordem errada, olhando uma pilha de stack trace
+sem nome de método algum.
+
+## Teste só o que mudou
+
+Em repositório com mais de uma aplicação, rodar a suíte inteira em todo PR é
+desperdício que vira hábito e depois vira lentidão aceita. Um job de detecção na
+frente resolve:
+
+```yaml
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      app: ${{ steps.filter.outputs.app }}
+    steps:
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api: ['apps/api/**', 'packages/shared/**']
+            app: ['apps/app/**', 'packages/shared/**']
+
+  test-api:
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    steps: [...]
+```
+
+Note que `packages/shared` aparece nos dois filtros. Fronteira compartilhada
+dispara os dois lados, e isso é intencional — o custo de rodar demais é minutos, o
+custo de rodar de menos é bug em produção.
+
+## Infra: `plan` no PR, `apply` no botão
+
+Para o que é infraestrutura, o mesmo pipeline tem dois gatilhos diferentes de
+propósito: `terraform plan` roda automático no pull request, e `apply` só em
+disparo manual.
+
+```yaml
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request'
+  apply:
+    if: github.event_name == 'workflow_dispatch'
+```
+
+Automação de `apply` em merge parece elegante e é como se destrói banco de
+produção às seis da tarde de uma sexta.
+
+## Pipeline é código e falha como código
+
+Duas correções que eu tive que publicar às pressas no meu próprio workflow de
+release, e que valem mais que qualquer conselho genérico:
+
+**Faltou identidade do git.** O workflow criava commit de bump de versão e falhava
+porque o runner não tem `user.name` configurado. Óbvio depois, invisível antes.
+
+**Faltou `pipefail`.** Um passo usava `algo | grep padrão` e seguia adiante em
+sucesso mesmo quando o comando da esquerda falhava — porque em shell o código de
+saída de um pipe é o do último comando. O pipeline passava verde num passo que não
+tinha feito nada.
+
+A conclusão é chata e verdadeira: script de pipeline merece o mesmo cuidado que
+código de produção. `set -euo pipefail` no topo de todo passo, e desconfiança
+permanente de qualquer passo que "passou" rápido demais.
+
+## O que eu faria diferente
+
+Começaria pelos portões, não pelos builds. Passei os primeiros dias fazendo o
+build funcionar no runner — que é a parte divertida — e só depois pensei no que o
+pipeline deveria recusar. A ordem inversa teria evitado dois releases errados que
+o portão de versão pegaria de graça.
+
+E mediria antes. Não dá pra saber se a entrega melhorou sem saber quanto tempo ela
+levava e quantas etapas dependiam de alguém lembrar de algo. Eu não tinha isso
+anotado, e por isso hoje só consigo dizer que ficou melhor — não consigo mostrar.

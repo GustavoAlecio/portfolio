@@ -1,0 +1,166 @@
+---
+title: "Mobile app security: obfuscation is the start, not the defense"
+summary: SPKI pinning with an owner and an alert threshold, device attestation scoped deliberately, an env contract instead of untracking a file, and why obfuscating without a de-obfuscation runbook sabotages your future self.
+publishedAt: "2026-08-25"
+category: seguranca
+tags:
+  - flutter
+  - ios
+  - android
+  - security
+draft: false
+---
+
+Every conversation about mobile app security starts at obfuscation and stops there.
+It's the easiest measure to turn on, the easiest to demo to management, and the one
+that protects least — because obfuscation prevents nothing, it only raises the cost.
+
+The premise that organizes everything else is uncomfortable: **the app runs in
+hostile territory**. The device belongs to the user, the binary is inspectable, the
+traffic is interceptable with half an hour of work, and anything the app knows,
+someone determined will find out. The useful question isn't "how do I hide this" —
+it's "what does the server need to verify on its own".
+
+I'll use the same auction app from the previous articles as the example. If a user
+can convince the server they placed a bid they didn't place, no amount of
+obfuscation helps.
+
+## Obfuscate, but write the runbook first
+
+Release obfuscation breaks the one thing you'll want at 2 a.m.: reading a stack
+trace. Obfuscated symbols turn a crash report into a list of addresses.
+
+The mandatory pairing is: obfuscate, keep the symbol map as a release artifact, and
+**write the de-obfuscation procedure before you need it**. Not as generic
+documentation — a runbook with the exact command, where to download that version's
+map, and what to do when the map doesn't match because somebody rebuilt.
+
+I wrote that runbook after the first time I needed it. The second time took five
+minutes instead of an afternoon.
+
+## R8 keeps need written justification
+
+There's a confusion here that catches people coming from Flutter: **R8 doesn't touch
+your Dart**. Release Dart is AOT-compiled and out of its reach. What R8 minifies and
+shrinks is the Android side — plugins, native SDKs, Kotlin and Java code that arrived
+as a dependency. Which is exactly why the breakage is surprising: you didn't write
+that code, so you don't suspect it.
+
+And the symptom is never a compile error. It's a `ClassNotFoundException` in
+production, only on the release build, only in that one flow — because the SDK
+resolves the class by name at runtime, and the name no longer exists.
+
+The fix is a `keep` rule, and the trap is letting the rules file become a dumping
+ground:
+
+```proguard
+# the notification SDK instantiates the handler by class name:
+# without this keep, push silently stops arriving on release builds only.
+-keep class com.example.push.** { *; }
+-keepclassmembers class * implements com.example.push.Handler { *; }
+```
+
+Every `keep` without a comment is a decision nobody will be able to reverse later,
+because no future colleague will dare delete a line whose reason for existing is
+unknown. The comment isn't documentation — it's permission to remove it later.
+
+## Pinning is easy to do and easy to turn into a bomb
+
+Certificate pinning by SPKI, applied to the REST client and also to the WebSocket —
+the part people forget, because sockets usually have their own client and escape the
+HTTP configuration:
+
+```dart
+// the pin is on the public key (SPKI), not the certificate:
+// rotating a certificate with the same key doesn't brick the app
+final pins = <String>[
+  'sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=', // current
+  'sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=', // backup
+];
+```
+
+Two things separate pinning that protects from pinning that causes an incident:
+
+**A backup pin.** If you pin a single key and it rotates, every installed app loses
+access to the server at once, and the fix requires a new store release — days, best
+case.
+
+**An owner and an alert.** Pinning is the one security measure that **turns an
+operational mistake into an unusable app**. So it needs a named person responsible
+and an alert threshold in crash monitoring: if certificate validation failures cross
+a line, somebody hears about it before support does.
+
+Documenting that alongside the implementation was the most mature decision I made on
+this topic, and I made it late.
+
+## Attestation: choose the paths, don't turn it on everywhere
+
+Obfuscation raises cost; attestation is what actually answers "did this request come
+from my app, on a device that hasn't been tampered with". Play Integrity on Android
+and App Attest on iOS produce a token the server validates on its own — control
+moves off the client, which is the whole point.
+
+And this is where most teams overshoot. Attesting everything costs latency, quota
+and support, and most routes don't deserve it:
+
+- **Attested:** the operations where fraud has value — authentication and purchase.
+- **Not attested:** configuration reads, catalog and public content. A configuration
+  `GET` isn't a fraud surface, and attesting it only adds a new way for the app to
+  fail to open.
+
+I started with a longer list and cut it — I dropped social flows and third-party
+login after realizing they were, in practice, configuration reads; I dropped
+administrative operations that already had server-side controls.
+
+And there's a compatibility detail that only shows up on older hardware: **App
+Attest requires iOS 14**. If your app supports iOS 13, you need a defined degraded
+path — which means explicitly deciding what to do with a device that can't attest.
+Block it? Allow it with limits? That's a product decision, not an engineering one,
+and somebody has to sign it.
+
+## An env contract instead of untracking a file
+
+The reflex, when you find a key in a tracked file, is to remove the file from
+version control. It feels right and creates two problems: nobody knows which
+variables the app needs anymore, and every new environment becomes archaeology.
+
+What worked better was separating the two concerns:
+
+- **A tracked contract.** An example file, always current, listing every required
+  variable with a fake value. It's documentation that can't rot, because the build
+  fails without it.
+- **Values outside the repository.** The real secret lives in the CI vault and in
+  each person's local environment.
+
+And remember: a key that was ever in a commit is compromised forever. Rotate it,
+don't just remove it — git history doesn't forget. I also had to clean a key that had
+leaked into **documentation**, which is where nobody looks.
+
+On top of that, App Check helps with the adjacent problem: making sure whoever calls
+your platform services is your app, and not a script holding your key.
+
+## A permission you don't request is an attack that doesn't exist
+
+The security measure with the best cost-benefit ratio uses no cryptography at all:
+removing what you don't use. I went through the declared permissions and found image
+and storage access requests left over from a dead feature.
+
+Every declared permission is attack surface, a reason for store review rejection, and
+a line on the privacy screen. And on iOS, a vague purpose string is a rejection —
+writing those well is security work and approval work at the same time.
+
+Same reasoning for sensitive content on screen: on screens showing a user's financial
+data, hiding content when the system signals a screen capture is cheap, and it
+prevents the most mundane leak there is — the screenshot shared in a group chat.
+
+## What I'd do differently
+
+I'd have started with the server's question. I spent time on client-side measures —
+obfuscate, hide, make it harder — before listing what the backend needs to verify by
+itself. The server's list is short and it's the one that matters: if the server trusts
+the client, no client-side layer fixes that.
+
+And I'd have assigned an owner to each measure the day it shipped. Pinning,
+attestation and App Check are things that break over time, through key rotation or a
+platform policy change — and a security measure without someone responsible is debt
+with an unknown due date.

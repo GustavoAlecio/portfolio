@@ -1,0 +1,223 @@
+---
+title: "Flutter CI/CD: from manual builds to a pipeline you trust"
+summary: What a mobile pipeline needs to prevent before it needs to do anything — a version gate, signing keys that live on nobody's laptop, a fully pinned toolchain, and why obfuscation symbols are part of the artifact.
+publishedAt: "2026-08-18"
+category: infra
+tags:
+  - flutter
+  - ci-cd
+  - github-actions
+  - ios
+  - android
+draft: false
+---
+
+Shipping a mobile app by hand has a characteristic way of going wrong: never during
+the build, always afterwards. The artifact comes out, goes to the store, and three
+days later somebody finds out that version was compiled with another environment's
+key, or that the build number repeated, or that the crash report arrived unreadable
+because the obfuscation symbols stayed on the machine of whoever ran it.
+
+I rebuilt a Flutter app's delivery from scratch because of that. I'll use the same
+auction app from the previous articles as the example — Android and iOS, three
+environments, GitHub Actions for validation and Codemagic for the builds that need
+macOS.
+
+## A pipeline exists to prevent, not to do
+
+The most common framing mistake is treating CI as task automation: "I used to run
+these commands, now the machine runs them". If that's all it is, you traded manual
+work for faster manual work, and you're still shipping wrong — just more
+efficiently.
+
+The value is in the gates. Every step that **refuses** to move forward is what turns
+delivery into a reliable process. The rest is convenience.
+
+## The version gate
+
+The gate that saved me the most time is the simplest one: if the version in
+`pubspec.yaml` hasn't gone up relative to what's already published, the build
+doesn't start.
+
+```yaml
+- name: Validate version bump
+  script: |
+    set -euo pipefail
+    current=$(grep '^version:' pubspec.yaml | awk '{print $2}')
+    published=$(cat .ci/last-published)
+    if [ "$current" = "$published" ]; then
+      echo "version $current already published — bump the pubspec first"
+      exit 1
+    fi
+```
+
+It looks like bureaucracy until you count the cost of the alternative: a build with
+both iOS and Android takes tens of minutes, and finding out about a duplicate
+version **during store validation** means losing the whole cycle. Failing in ten
+seconds beats failing in forty minutes.
+
+Note the `set -euo pipefail`. I'll come back to it at the end.
+
+## Signing can't live on anybody's laptop
+
+While the Android signing key sits on someone's laptop, you don't have a pipeline —
+you have a person. And that same laptop is the only place a release can come from.
+
+What worked was keeping the keystore encrypted in the repository and decrypting it
+on the runner, with the passphrase coming from the variable vault:
+
+```yaml
+- name: Decrypt Android signing keys
+  script: |
+    set -euo pipefail
+    gpg --batch --yes --passphrase "$KEYSTORE_PASSPHRASE" \
+        --decrypt --output android/app/upload.keystore \
+        android/app/upload.keystore.gpg
+```
+
+There's a trap here that cost me an afternoon: **the Codemagic macOS image doesn't
+ship GPG**. The step fails with "command not found" on something that worked
+locally, and the message suggests nothing about the runner being the problem.
+Installing GPG became the first step of the workflow.
+
+On iOS the story is different because Apple already solved it on their side:
+profiles and certificates come from the signing service, and what you configure is
+access, not files.
+
+## Pin the whole toolchain, not half of it
+
+This is the mistake I made and kept for too long:
+
+```yaml
+environment:
+  flutter: 3.32.1      # pinned
+  cocoapods: 1.15.2    # pinned
+  xcode: latest        # ...and here's the surprise
+```
+
+Pinning Flutter and CocoaPods while leaving Xcode on `latest` means your
+reproducible build is reproducible right up until Apple ships a new version. Then,
+on some random Tuesday, with no commit of yours involved, the pipeline breaks — and
+you'll go looking for the culprit in your own code.
+
+Either you pin everything and accept the cost of deliberate upgrades, or you float
+everything and accept that it breaks sometimes. The middle is the worst of both: it
+breaks without warning and you don't suspect the cause.
+
+## Three environments: honest duplication
+
+I keep three nearly identical workflows — `deploy-dev`, `deploy-stg` and
+`deploy-prod` — and deliberately didn't collapse them into one parameterized job.
+
+The urge to unify is strong, and the price shows up fast: a workflow parameterized
+by environment accumulates conditionals, and a pipeline is the most expensive place
+to have a wrong `if`. A wrong `if` in a test gives you a red build; a wrong `if` in
+a release pipeline publishes the wrong environment to the store.
+
+Duplicated configuration isn't duplicated knowledge. I'd rather read three files
+top to bottom than simulate one file in my head.
+
+Where I **don't** duplicate is the part that produces the artifact: the AAB build,
+the universal APK build and the IPA build are the same script called with different
+parameters. The universal APK exists because internal testing and off-store
+distribution need it — the AAB is what goes to Play, but it doesn't install on a QA
+device.
+
+## Obfuscation symbols are part of the artifact
+
+If you obfuscate the build — and you should — the crash report is useless without
+the symbol map. Packaging that map alongside each release artifact is what separates
+"we have obfuscation" from "we have obfuscation and can still debug".
+
+```yaml
+artifacts:
+  - build/app/outputs/bundle/**/*.aab
+  - build/ios/ipa/*.ipa
+  - build/symbols/**            # without this, a release crash is guesswork
+```
+
+I learned how much this matters in the wrong order, staring at a stack trace with no
+method names in it.
+
+## Only test what changed
+
+In a repository with more than one application, running the whole suite on every PR
+is waste that becomes habit and then becomes accepted slowness. A detection job in
+front solves it:
+
+```yaml
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      app: ${{ steps.filter.outputs.app }}
+    steps:
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api: ['apps/api/**', 'packages/shared/**']
+            app: ['apps/app/**', 'packages/shared/**']
+
+  test-api:
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    steps: [...]
+```
+
+Note that `packages/shared` appears in both filters. A shared boundary triggers both
+sides, and that's intentional — the cost of running too much is minutes, the cost of
+running too little is a bug in production.
+
+## Infrastructure: `plan` on the PR, `apply` on a button
+
+For anything that is infrastructure, the same pipeline has two deliberately
+different triggers: `terraform plan` runs automatically on the pull request, and
+`apply` only on manual dispatch.
+
+```yaml
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request'
+  apply:
+    if: github.event_name == 'workflow_dispatch'
+```
+
+Automatic `apply` on merge looks elegant, and it's how production databases get
+destroyed at six on a Friday.
+
+## A pipeline is code and fails like code
+
+Two fixes I had to rush into my own release workflow, worth more than any generic
+advice:
+
+**Missing git identity.** The workflow created a version bump commit and failed
+because the runner has no `user.name` configured. Obvious afterwards, invisible
+before.
+
+**Missing `pipefail`.** A step used `something | grep pattern` and moved on
+successfully even when the left-hand command failed — because in a shell, a pipe's
+exit code is the last command's. The pipeline went green on a step that had done
+nothing.
+
+The conclusion is boring and true: pipeline scripts deserve the same care as
+production code. `set -euo pipefail` at the top of every step, and permanent
+suspicion of any step that "passed" a little too fast.
+
+## What I'd do differently
+
+I'd start with the gates, not the builds. I spent the first days getting the build to
+work on the runner — the fun part — and only then thought about what the pipeline
+should refuse. The reverse order would have prevented two bad releases the version
+gate would have caught for free.
+
+And I'd measure first. There's no way to know whether delivery improved without
+knowing how long it took and how many steps depended on someone remembering
+something. I didn't write that down, which is why today I can only say it got better
+— I can't show it.

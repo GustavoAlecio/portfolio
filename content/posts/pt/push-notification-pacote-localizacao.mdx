@@ -1,0 +1,286 @@
+---
+title: "Push notification em pacote próprio: driver por plataforma e o idioma que o servidor não sabe"
+summary: Por que push não se resolve no Dart, como isolar notificação num pacote com driver por plataforma e um driver falso, e o problema que ninguém avisa — traduzir a notificação para o idioma que o usuário escolheu no app, não o do sistema.
+publishedAt: "2026-09-01"
+category: arquitetura
+tags:
+  - flutter
+  - ios
+  - android
+  - push
+draft: false
+---
+
+Push notification parece uma feature e é uma fronteira. Ela começa num servidor,
+atravessa dois serviços de plataforma diferentes, é exibida por código nativo que
+roda quando o seu app está morto, e só então — se o usuário tocar — volta para o
+Dart.
+
+Sigo com o app de leilão dos artigos anteriores. As notificações que interessam são
+"seu lance foi superado", "o leilão fecha em cinco minutos" e "você venceu" — e
+todas as três precisam chegar no idioma que o usuário escolheu dentro do app.
+
+## Push não se resolve no Dart
+
+O primeiro reflexo é procurar um pacote que faça tudo em Dart. Não existe, e a razão
+é estrutural: **quando a notificação chega, o seu código Dart pode não estar
+rodando**. App em segundo plano é um caso; app encerrado pelo sistema é outro. Quem
+decide o que aparece na tela é o sistema operacional, a partir do payload e do
+código nativo.
+
+Isso muda o desenho. Em vez de "uma classe que cuida de push", o que funciona é uma
+fronteira explícita: o Dart declara o que precisa, e cada plataforma implementa à
+sua maneira.
+
+## O pacote: domínio no meio, plataforma nas pontas
+
+Isolei notificação num pacote próprio, com uma organização que se pagou na primeira
+manutenção:
+
+```
+push_notification/
+  domain/           contratos, falhas tipadas, o que é uma notificação
+  application/      serviço que orquestra, sem saber de plataforma
+  infrastructure/   registro de dispositivo no backend
+  platform/         android_push_driver · ios_push_driver · mock_push_driver
+```
+
+O driver é uma interface estreita, e a estreiteza é o ponto:
+
+```dart
+abstract interface class PushDriver {
+  Future<String?> requestToken();
+  Future<void> subscribe(String topic);
+  Future<void> unsubscribe(String topic);
+  Stream<PushOpened> get opened;
+}
+```
+
+O terceiro driver — o falso — é o que eu recomendaria mais. Push é a feature mais
+chata de testar: exige aparelho real, permissão concedida, servidor cooperando e
+paciência. Com um driver falso, todo o fluxo acima da fronteira (assinar tópico,
+tratar abertura, navegar) fica testável em segundos, no CI, sem tocar em nada nativo.
+
+Falhas tipadas ajudam mais do que parece:
+
+```dart
+sealed class PushFailure {
+  const PushFailure();
+}
+
+final class PermissionDenied extends PushFailure {}
+final class TokenUnavailable extends PushFailure {}
+final class TopicRejected extends PushFailure {
+  const TopicRejected(this.topic);
+  final String topic;
+}
+```
+
+"Não conseguiu registrar" é uma informação inútil no suporte. "Permissão negada" e
+"token indisponível" são dois problemas com causas e soluções diferentes.
+
+## O idioma que o servidor não sabe
+
+Aqui está o problema que ninguém avisa, e ele tem duas camadas.
+
+A primeira: **se o usuário escolhe idioma dentro do app, o servidor não sabe disso**
+— a menos que você conte. E não conte no momento do envio; conte no momento do
+registro do dispositivo, junto do token, e atualize sempre que ele trocar:
+
+```dart
+Future<void> registerDevice() async {
+  final token = await driver.requestToken();
+  if (token == null) return;
+
+  await repository.register(
+    token: token,
+    // o idioma é atributo do dispositivo, não do envio
+    locale: appLocale.current,       // pt-BR, en, zh-Hans
+    platform: currentPlatform,
+  );
+}
+```
+
+A segunda camada é a que dói: **o idioma do sistema não é o idioma do app**. Alguém
+com iPhone em inglês pode ter escolhido português no seu app, e é o português que
+ele espera ver na tela de bloqueio. Toda API nativa de formatação vai, por padrão,
+te dar o idioma do sistema.
+
+## Quatro estratégias, e a pergunta que decide entre elas
+
+A pergunta não é técnica, é de propriedade: **quem é dono do texto, o servidor ou o
+app?** Tudo o mais decorre disso.
+
+**1. Texto pronto, no idioma registrado.** O servidor resolve a tradução e envia
+título e corpo já escritos. Simples, funciona com app encerrado, payload pequeno.
+Depende inteiramente de o locale registrado estar correto.
+
+**2. Payload multilíngue.** O servidor manda todas as línguas e o cliente escolhe:
+
+```json
+{
+  "data": {
+    "title": {
+      "pt-BR": "Seu lance foi superado",
+      "en": "You've been outbid",
+      "zh-Hans": "你的出价被超越了"
+    }
+  }
+}
+```
+
+Isso resolve o problema do idioma **sem depender do registro estar em dia**, que é a
+sua vantagem real. Cabe bem em três locales — o limite de 4 KB do APNs só começa a
+apertar quando a lista de idiomas cresce ou o corpo é longo. O custo verdadeiro não é
+tamanho: é que você transmite três versões para entregar uma, e o catálogo de texto
+passa a viver no servidor.
+
+**3. Chave e parâmetros.** O servidor envia `type`, valores e identificadores; o
+cliente monta a frase.
+
+```json
+{
+  "aps": {
+    "mutable-content": 1,
+    "alert": {
+      "title": "Seu lance foi superado",
+      "body": "Toque para ver o leilão"
+    }
+  },
+  "data": {
+    "type": "bid_outbid",
+    "auctionId": "a_8123",
+    "amount": "1850.00",
+    "currency": "BRL",
+    "itemTitle": "Relógio vintage"
+  }
+}
+```
+
+Os dois blocos são obrigatórios e têm papéis diferentes. O `aps` é o que o sistema
+exibe se ninguém reescrever nada — sem ele, o iOS trata o envio como push silencioso
+e **nada aparece na tela**. O `data` é o que o cliente usa para compor a frase final.
+
+**4. `loc-key` e `loc-args`.** A plataforma já resolve isso, e quase ninguém usa. O
+payload carrega uma chave e argumentos, e o **sistema** procura a string no bundle do
+app — sem extension nenhuma:
+
+```json
+{
+  "aps": {
+    "alert": {
+      "loc-key": "bid_outbid_body",
+      "loc-args": ["R$ 1.850,00", "Relógio vintage"]
+    }
+  }
+}
+```
+
+No FCM o equivalente é `title_loc_key` e `body_loc_args`. É a opção mais barata de
+todas — e tem um porém que decide tudo: **ela resolve contra o idioma do bundle**, que
+é o idioma do sistema, não o que o usuário escolheu no seu app. Só funciona se o seu
+seletor de idioma alterar `AppleLanguages` no `UserDefaults`, o que a maioria dos apps
+Flutter não faz — eles trocam o locale do lado do Dart, e o bundle nativo nem fica
+sabendo.
+
+---
+
+Fui pela terceira, e o critério foi a propriedade do texto. Com o app dono: a frase
+acompanha a versão instalada — e não a que o servidor supõe; a formatação de moeda e
+de número sai correta por locale sem o servidor conhecer a convenção de cada um; e
+corrigir uma frase mal escrita é um deploy de app, não uma migração de todas as
+mensagens agendadas.
+
+Se o seu caso for o oposto — muitas mensagens, mudando por campanha, escritas por
+quem não abre o repositório — então o servidor deve ser dono, e a segunda estratégia
+é a mais honesta: ela entrega o idioma certo sem exigir que o registro do dispositivo
+esteja perfeito.
+
+O custo da terceira é real e vale dizer: **exige código nativo nos dois lados**, e no
+iOS exige um target novo.
+
+## No iOS, traduzir antes de exibir exige uma extension
+
+Para alterar o conteúdo de uma notificação antes de ela aparecer, o payload precisa
+pedir permissão e você precisa de um Notification Service Extension:
+
+```json
+{ "aps": { "mutable-content": 1, "alert": { "title": "…", "body": "…" } } }
+```
+
+O `alert` continua sendo o texto de reserva do exemplo anterior: se a extension
+falhar, é ele que aparece.
+
+E aí você cai exatamente no mesmo problema da Live Activity: **a extension é outro
+processo e não herda o idioma escolhido no app**. A solução é a mesma — o app grava
+a escolha no App Group container, e a extension lê de lá antes de compor o texto.
+
+```swift
+final class NotificationService: UNNotificationServiceExtension {
+    override func didReceive(
+        _ request: UNNotificationRequest,
+        withContentHandler handler: @escaping (UNNotificationContent) -> Void
+    ) {
+        let content = request.content.mutableCopy() as! UNMutableNotificationContent
+        // idioma vem do App Group, não de Locale.current
+        let locale = SharedLocale.readFromAppGroup() ?? "en"
+        content.title = Strings.title(for: content.userInfo, locale: locale)
+        content.body  = Strings.body(for: content.userInfo, locale: locale)
+        handler(content)
+    }
+}
+```
+
+Vale saber de antemão: se a extension estourar o tempo ou falhar, o sistema exibe o
+conteúdo original do payload. Ou seja, **mande um texto de reserva razoável no
+payload mesmo usando chaves** — senão a falha aparece como notificação vazia.
+
+No Android o caminho é mais direto, porque você já controla a exibição: centralizei
+a construção da notificação num único ponto nativo, que lê o idioma escolhido do
+armazenamento compartilhado e monta título, corpo e imagem antes de publicar no
+canal.
+
+## Tópico ou token: os dois, para coisas diferentes
+
+Tópico serve para o que é coletivo: "todos que acompanham este leilão". Token serve
+para o que é individual: "o seu lance foi superado". Misturar os dois é o que produz
+notificação errada para a pessoa errada.
+
+E tópico tem uma armadilha de estado: **assinar tópico é operação de servidor, não
+de app**. Se o usuário desliga a notificação de um leilão, a fonte da verdade é o
+servidor — não a preferência local, que vira e mexe divergiu depois de reinstalar
+app ou trocar aparelho. Levei um tempo pra tratar "silenciar" e "favoritar" como
+estado remoto, e as inconsistências pararam.
+
+## O payload que precisa sobreviver ao app morto
+
+O caso que quebra em produção e nunca em desenvolvimento: notificação chega, o app
+está encerrado, o usuário toca. O sistema inicia o app do zero — e o payload que
+motivou o toque chega antes de a árvore de widgets existir.
+
+Se você tentar navegar naquele instante, não tem para onde navegar. A solução é
+guardar o último payload de segundo plano no lado nativo e entregá-lo quando o Dart
+avisar que está pronto:
+
+```dart
+Future<void> onAppReady() async {
+  final pending = await driver.consumePendingOpen();
+  if (pending != null) router.handle(pending.deepLink);
+}
+```
+
+Repare no `consume`: entregar e apagar. Payload que não é consumido reabre a mesma
+tela na próxima inicialização, e o usuário não entende por que o app insiste num
+leilão que já terminou.
+
+## O que eu faria diferente
+
+Teria registrado o idioma no dispositivo desde o primeiro dia. Comecei mandando
+texto pronto do servidor, descobri o problema do idioma quando o app ganhou o
+segundo locale, e refazer isso depois custou uma extension nova no iOS e uma
+migração de mensagens agendadas.
+
+E teria escrito o driver falso antes dos drivers reais. Escrevi por último, para
+poder testar — e percebi que se tivesse escrito primeiro, ele teria definido a
+interface, em vez de a interface ter sido definida pelo primeiro serviço de push que
+eu integrei.

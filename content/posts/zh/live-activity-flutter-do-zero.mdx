@@ -1,0 +1,226 @@
+---
+title: "在 Flutter 应用中实现 Live Activity：从零到真机"
+summary: 完整路径——Widget Extension target、App Group、状态契约、锁屏与 Dynamic Island 视图，以及如何从 Dart 侧启动、通过 APNs 更新并结束它。
+publishedAt: "2026-08-10"
+category: flutter
+tags:
+  - ios
+  - activitykit
+  - flutter
+  - swift
+draft: false
+---
+
+Live Activity 没有官方的 Flutter 插件，但这件事没有听起来那么可怕：需要做的就是一个
+平台通道加一个 SwiftUI 小组件。真正让人卡住的，是在第一行代码生效**之前**必须配置
+正确的那一堆东西。
+
+我会用一个**实时拍卖**作为例子——不断上涨的出价、用户在竞拍者中的排名，以及一个
+可能被延长的倒计时。它适用于任何用户希望不打开应用就能持续关注的场景。
+
+## 1. 写代码之前的配置
+
+iOS 工程里有四件事，没有一件是可选的：
+
+- **一个 Widget Extension target。** Live Activity 的 SwiftUI 代码就住在这里。它不是
+  你的应用——它是一个独立进程，拥有自己的 bundle identifier，通常以主应用的 id 作为
+  前缀。
+- **在两个 target 上都启用 App Group。** 这是应用与小组件之间唯一的文件通道。你会比
+  预想中更频繁地用到它。
+- **在应用的 `Info.plist` 中把 `NSSupportsLiveActivities` 设为 `true`。**
+- **推送能力**，如果你要从服务端更新——只要是实时场景，就一定需要。
+
+在调用任何 API 之前，先确认用户允许：
+
+```swift
+guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+```
+
+这个值可能因为用户在设置里的选择而为 `false`，而忽略它的返回值，是「在我的 iPhone 上
+不工作」这类问题里最傻的一种原因。
+
+## 2. 状态契约
+
+`ActivityAttributes` 在 activity 启动之后就不可变了，`ContentState` 才是推送更新的
+部分。这个划分是永久性的，所以值得花两分钟想清楚：拍卖**是什么**放进 attributes，
+拍卖里**发生了什么**放进 state。
+
+```swift
+import ActivityKit
+
+struct AuctionActivityAttributes: ActivityAttributes {
+    struct ContentState: Codable, Hashable {
+        let currentBid: Decimal
+        let bidCount: Int
+        let myRank: Int?
+        let phase: String
+        let closesAt: Date?
+    }
+
+    let auctionId: String
+    let itemTitle: String
+    let sellerName: String
+}
+```
+
+## 3. 视图
+
+一个 `ActivityConfiguration` 同时描述两个世界：锁屏与 Dynamic Island。数据来源相同，
+而灵动岛需要三种不同的排布。
+
+```swift
+import SwiftUI
+import WidgetKit
+
+struct AuctionActivityWidget: Widget {
+    var body: some WidgetConfiguration {
+        ActivityConfiguration(for: AuctionActivityAttributes.self) { context in
+            // 锁屏与横幅
+            VStack(alignment: .leading, spacing: 4) {
+                Text(context.attributes.itemTitle)
+                    .lineLimit(1)
+                Text(context.state.currentBid, format: .currency(code: "CNY"))
+                    .monospacedDigit()
+                if let rank = context.state.myRank {
+                    Text("你的排名：\(rank)")
+                }
+            }
+            .padding()
+            .activityBackgroundTint(.black.opacity(0.6))
+
+        } dynamicIsland: { context in
+            DynamicIsland {
+                DynamicIslandExpandedRegion(.leading) {
+                    Text(context.attributes.itemTitle).lineLimit(1)
+                }
+                DynamicIslandExpandedRegion(.trailing) {
+                    Text(context.state.currentBid, format: .currency(code: "CNY"))
+                        .monospacedDigit()
+                }
+                DynamicIslandExpandedRegion(.bottom) {
+                    Text("\(context.state.bidCount) 次出价")
+                }
+            } compactLeading: {
+                Image(systemName: "hammer.fill")
+            } compactTrailing: {
+                Text(context.state.currentBid, format: .currency(code: "CNY"))
+                    .monospacedDigit()
+            } minimal: {
+                Image(systemName: "hammer.fill")
+            }
+        }
+    }
+}
+```
+
+有两件事能省掉后续的返工：对所有会变化的数字使用 `monospacedDigit()`，否则每次出价
+布局都会跳动；以及从一开始就处理 `.small` family，因为那正是在 Watch 上显示的形态。
+
+## 4. 在原生侧启动、更新与结束
+
+一个简单的管理器就能覆盖完整的生命周期：
+
+```swift
+final class LiveActivityManager {
+    private var activity: Activity<AuctionActivityAttributes>?
+
+    func start(auctionId: String, title: String, seller: String) throws {
+        let attributes = AuctionActivityAttributes(
+            auctionId: auctionId, itemTitle: title, sellerName: seller
+        )
+        let initial = AuctionActivityAttributes.ContentState(
+            currentBid: 0, bidCount: 0, myRank: nil,
+            phase: "scheduled", closesAt: nil
+        )
+
+        activity = try Activity.request(
+            attributes: attributes,
+            content: .init(state: initial, staleDate: nil),
+            pushType: .token           // 更新来自服务端
+        )
+    }
+
+    func observeToken() async {
+        guard let activity else { return }
+        for await data in activity.pushTokenUpdates {
+            let token = data.map { String(format: "%02x", $0) }.joined()
+            // 连同 activityId 一起发送到后端
+            await register(token: token, activityId: activity.id)
+        }
+    }
+
+    func end() async {
+        await activity?.end(nil, dismissalPolicy: .immediate)
+    }
+}
+```
+
+注意 `pushType: .token`：正是它让 iOS 为这个 activity 生成专属的 push token。没有它，
+你只能在应用打开时从应用内部更新——这对任何实时场景都毫无用处。
+
+## 5. 与 Dart 的通道
+
+在 Flutter 一侧，一个 `MethodChannel` 就够了，不需要更花哨的东西：
+
+```dart
+class LiveActivityChannel {
+  static const _channel = MethodChannel('app/live_activity');
+
+  Future<void> start(Auction auction) => _channel.invokeMethod('start', {
+        'auctionId': auction.id,
+        'title': auction.item.title,
+        'seller': auction.seller.name,
+      });
+
+  Future<void> end() => _channel.invokeMethod('end');
+}
+```
+
+用户进入拍卖页时调用 `start`，离开时调用 `end`。一个已经失去意义却还留在锁屏上的
+Live Activity，比没有更糟。
+
+## 6. 通过 APNs 更新
+
+Live Activity 的推送不是普通推送。它发往 activity 自己的 token，并使用专属的请求头：
+
+```http
+apns-push-type: liveactivity
+apns-topic: com.example.auction.push-type.liveactivity
+apns-priority: 10
+```
+
+而 payload 携带的是完整的 `content-state`，不是增量：
+
+```json
+{
+  "aps": {
+    "timestamp": 1786500000,
+    "event": "update",
+    "content-state": {
+      "currentBid": 1850.00,
+      "bidCount": 34,
+      "myRank": 2,
+      "phase": "extended",
+      "closesAt": "2026-08-10T20:31:00Z"
+    }
+  }
+}
+```
+
+`event` 接受 `update` 与 `end`。`timestamp` 是必填的，它的作用是让 iOS 丢弃乱序到达的
+更新——而乱序发生的频率会超出你的预期。
+
+## 7. 测试
+
+模拟器在布局上很有帮助，在其他所有方面都会骗你。有两样东西值得在需要之前就先准备好：
+
+- **一个模拟脚本**，按真实场景的顺序触发状态变化——出价、被超越、最后几秒被延长、
+  结束。这比等一场真实拍卖发生要快得多。
+- **小组件侧的日志**，因为 extension 不会出现在应用的控制台里，你会花不少时间确信
+  推送没有到达，而实际上它到了，只是被丢弃了。
+
+---
+
+以上是顺利路径。它没有覆盖的是：payload 到达时不完整会发生什么、小组件忽略应用内所选
+语言会发生什么，以及时钟必须在没有推送的情况下继续走动时该怎么办——而真正的工作恰好
+就在那里。这份清单我写在[哪些地方会出问题，以及为什么](/zh/blog/live-activity-leilao-ao-vivo)。
