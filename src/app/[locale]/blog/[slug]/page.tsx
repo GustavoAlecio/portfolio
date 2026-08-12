@@ -7,8 +7,10 @@ import {
   getAvailableLocales,
   getPost,
   getPostSlugs,
+  getRelatedPosts,
 } from "@/content/repository";
 import { categoryTone, Pill } from "@/design-system/components/pill";
+import { PostCard } from "@/design-system/patterns/post-card";
 import { Container } from "@/design-system/patterns/section";
 import { htmlLang, locales, routing, type Locale } from "@/i18n/routing";
 
@@ -56,6 +58,7 @@ export default async function PostPage({
   if (!post) notFound();
 
   const headings = extractHeadings(post.body);
+  const related = await getRelatedPosts(locale, slug, post.data.category);
 
   return (
     <>
@@ -92,6 +95,17 @@ export default async function PostPage({
             <div className="prose">
               <Mdx source={post.body} />
             </div>
+
+            {related.length > 0 ? (
+              <section className="mt-[62px] border-t border-line pt-[30px]">
+                <span className="label">{t("blog.related")}</span>
+                <div className="mt-[18px] grid gap-5 sm:grid-cols-2">
+                  {related.map((item) => (
+                    <PostCard key={item.slug} post={item} />
+                  ))}
+                </div>
+              </section>
+            ) : null}
           </article>
 
           {headings.length > 1 ? (

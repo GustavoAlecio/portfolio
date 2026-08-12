@@ -123,6 +123,25 @@ export async function getPost(
   );
 }
 
+/**
+ * Sugestão no fim do artigo. Mesma categoria primeiro, depois o mais recente —
+ * com cinco textos qualquer coisa mais sofisticada seria teatro.
+ */
+export async function getRelatedPosts(
+  locale: Locale,
+  slug: string,
+  category: PostFrontmatter["category"],
+  limit = 2,
+): Promise<Post[]> {
+  const posts = (await getPosts(locale)).filter((p) => p.slug !== slug);
+  return posts
+    .sort((a, b) => {
+      const same = Number(b.data.category === category) - Number(a.data.category === category);
+      return same !== 0 ? same : b.data.publishedAt.localeCompare(a.data.publishedAt);
+    })
+    .slice(0, limit);
+}
+
 export async function getProjects(locale: Locale): Promise<Project[]> {
   const slugs = await allSlugs("projects");
   const docs = await Promise.all(

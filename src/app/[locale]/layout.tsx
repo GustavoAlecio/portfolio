@@ -73,6 +73,14 @@ export async function generateMetadata({
         ),
         "x-default": "/",
       },
+      types: {
+        "application/rss+xml": [
+          {
+            url: locale === routing.defaultLocale ? "/feed.xml" : `/${locale}/feed.xml`,
+            title: `${t("name")} · ${t("description")}`,
+          },
+        ],
+      },
     },
   };
 }

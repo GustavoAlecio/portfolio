@@ -40,6 +40,7 @@
     "readingTime": "阅读约 {minutes} 分钟",
     "onThisPage": "本页目录",
     "read": "阅读文章",
+    "related": "继续阅读",
     "empty": "暂无该语言的文章。",
     "fallbackLabel": "中文待译",
     "fallbackNotice": "本文的中文版尚未完成，您正在阅读原文版本。",
