@@ -6,7 +6,7 @@ import { Pill } from "@/design-system/components/pill";
 import { Link } from "@/i18n/navigation";
 
 const card =
-  "group block overflow-hidden rounded-card border border-line bg-surface no-underline shadow-e1 " +
+  "reveal group block overflow-hidden rounded-card border border-line bg-surface no-underline shadow-e1 " +
   "transition-[border-color,box-shadow,transform] duration-250 ease-ui " +
   "hover:border-line-strong hover:shadow-e3 hover:-translate-y-[2px]";
 

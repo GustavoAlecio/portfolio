@@ -194,6 +194,68 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /**
+   * Revelação no scroll sem JavaScript. `animation-timeline: view()` liga a
+   * animação à posição do elemento na viewport — sem listener, sem observer,
+   * sem trabalho na main thread.
+   *
+   * Fica dentro de @supports porque, sem suporte, `animation-timeline` é
+   * ignorado e a animação rodaria na linha do tempo padrão: tudo apareceria de
+   * uma vez no load, com flash. Sem o suporte, o conteúdo simplesmente já está
+   * visível, que é o comportamento correto.
+   */
+  @supports (animation-timeline: view()) {
+    .reveal {
+      animation: reveal-in linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 42%;
+    }
+  }
+
+  @keyframes reveal-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /**
+   * Barra de progresso de leitura, também sem JavaScript: `scroll()` liga a
+   * escala ao progresso da rolagem do documento.
+   */
+  .reading-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    transform-origin: 0 50%;
+    background: var(--color-teal-solid);
+    z-index: 50;
+    display: none;
+  }
+
+  @supports (animation-timeline: scroll()) {
+    .reading-progress {
+      display: block;
+      animation: progress-grow linear both;
+      animation-timeline: scroll();
+    }
+  }
+
+  @keyframes progress-grow {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+
   /* ---------------------------------------------------------------------
      Prose — o único lugar do sistema que estiliza tags HTML nuas.
      Todo MDX renderizado passa por aqui.

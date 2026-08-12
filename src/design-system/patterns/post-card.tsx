@@ -12,7 +12,7 @@ export function PostCard({ post }: { post: Post }) {
   return (
     <Link
       href={{ pathname: "/blog/[slug]", params: { slug: post.slug } }}
-      className="group grid content-start gap-[14px] rounded-card border border-line bg-surface p-6 no-underline shadow-e1 transition-[border-color,box-shadow,transform] duration-250 ease-ui hover:-translate-y-[2px] hover:border-line-strong hover:shadow-e3"
+      className="reveal group grid content-start gap-[14px] rounded-card border border-line bg-surface p-6 no-underline shadow-e1 transition-[border-color,box-shadow,transform] duration-250 ease-ui hover:-translate-y-[2px] hover:border-line-strong hover:shadow-e3"
     >
       <div className="flex flex-wrap items-center gap-[10px]">
         <Pill tone={categoryTone[data.category] ?? "neutral"} caps>

@@ -88,7 +88,9 @@ export default async function LocaleLayout({
   return (
     <html lang={htmlLang[locale as Locale]} className={fontVars}>
       <body className="min-h-dvh">
-        <NextIntlClientProvider messages={{ nav: messages.nav }}>
+        <NextIntlClientProvider
+          messages={{ nav: messages.nav, ui: messages.ui }}
+        >
           <SiteHeader />
           <main>{children}</main>
           <SiteFooter />

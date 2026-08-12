@@ -3,10 +3,11 @@ import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypePrettyCode from "rehype-pretty-code";
 import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
+import { CodeBlock } from "@/design-system/components/code-block";
 import { MediaFrame } from "@/design-system/components/media-frame";
 import { remarkCjkTighten } from "./remark-cjk-tighten";
 
-const components = { MediaFrame };
+const components = { MediaFrame, pre: CodeBlock };
 
 export function Mdx({ source }: { source: string }) {
   return (
