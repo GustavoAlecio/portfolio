@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono, Noto_Sans_SC } from "next/font/google";
+import {
+  Bricolage_Grotesque,
+  Inter,
+  JetBrains_Mono,
+  Noto_Sans_SC,
+} from "next/font/google";
 import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
@@ -13,6 +18,13 @@ import "../globals.css";
 const inter = Inter({
   subsets: ["latin", "latin-ext"],
   variable: "--font-inter",
+  display: "swap",
+});
+
+/** Face de display: título e cartão. O corpo continua em Inter. */
+const bricolage = Bricolage_Grotesque({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-bricolage",
   display: "swap",
 });
 
@@ -81,9 +93,10 @@ export default async function LocaleLayout({
   const messages = await getMessages();
 
   const isZh = (locale as Locale) === "zh";
+  // no zh a face de display não se aplica: nenhuma latina desenha hanzi
   const fontVars = isZh
     ? `${notoSC.variable} ${jetbrains.variable}`
-    : `${inter.variable} ${jetbrains.variable}`;
+    : `${inter.variable} ${jetbrains.variable} ${bricolage.variable}`;
 
   return (
     <html lang={htmlLang[locale as Locale]} className={fontVars}>

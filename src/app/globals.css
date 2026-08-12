@@ -54,6 +54,7 @@
 
   --ease-ui: cubic-bezier(0.22, 0.68, 0.24, 1);
 
+  --font-display: var(--font-bricolage), var(--font-inter), sans-serif;
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, "SF Mono", Menlo, monospace;
   --font-cjk:
@@ -124,6 +125,19 @@
       transform: translate3d(-5%, 4%, 0) scale(1.14);
     }
   }
+  /**
+   * Face de display em todo título. Aplicada na base para não depender de
+   * lembrar a classe em cada componente novo.
+   */
+  :is(h1, h2, h3, h4) {
+    font-family: var(--font-display);
+  }
+  /* exceções: o h3 da prosa é rótulo em mono, e .label é sempre mono */
+  .prose h3,
+  .label {
+    font-family: var(--font-mono);
+  }
+
   ::selection {
     background: rgba(11, 124, 105, 0.16);
   }
@@ -139,6 +153,7 @@
      ------------------------------------------------------------------------ */
   [lang^="zh"] {
     --font-sans: var(--font-cjk);
+    --font-display: var(--font-cjk);
     line-break: strict;
     word-break: normal;
     overflow-wrap: normal;
