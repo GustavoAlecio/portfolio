@@ -1,8 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { getPosts, getProjects } from "@/content/repository";
+import { getPosts } from "@/content/repository";
 import { ButtonLink } from "@/design-system/components/button";
 import { PostCard } from "@/design-system/patterns/post-card";
-import { ProjectCard } from "@/design-system/patterns/project-card";
 import {
   Container,
   Section,
@@ -10,7 +9,6 @@ import {
 } from "@/design-system/patterns/section";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
-
 
 export default async function HomePage({
   params,
@@ -21,11 +19,7 @@ export default async function HomePage({
   setRequestLocale(locale);
   const t = await getTranslations();
 
-  const [projects, posts] = await Promise.all([
-    getProjects(locale),
-    getPosts(locale),
-  ]);
-  const featured = projects.find((p) => p.data.featured) ?? projects[0];
+  const posts = await getPosts(locale);
 
   return (
     <>
@@ -52,44 +46,26 @@ export default async function HomePage({
           {t("home.lede")}
         </p>
 
-        {/* CTA acompanha o que existe publicado: mandar para um índice vazio é
-            pior que não oferecer o link. Volta sozinho quando houver conteúdo. */}
+        {/* mandar para um índice vazio é pior que não oferecer o link */}
         <div className="flex flex-wrap gap-[11px]">
-          {projects.length ? (
-            <ButtonLink href="/projetos" variant="primary">
-              {t("home.ctaProjects")}
-            </ButtonLink>
-          ) : (
-            <ButtonLink href="/sobre" variant="primary">
-              {t("home.ctaAbout")}
-            </ButtonLink>
-          )}
+          <ButtonLink href="/sobre" variant="primary">
+            {t("home.ctaAbout")}
+          </ButtonLink>
           {posts.length ? (
             <ButtonLink href="/blog">{t("home.ctaBlog")}</ButtonLink>
           ) : null}
         </div>
       </Container>
 
-      {featured ? (
-        <Section>
-          <SectionHead
-            kicker={t("home.featured")}
-            action={
-              <Link href="/projetos" className="label text-[11px] no-underline hover:text-teal">
-                {t("home.allProjects")} →
-              </Link>
-            }
-          />
-          <ProjectCard project={featured} wide />
-        </Section>
-      ) : null}
-
       {posts.length ? (
         <Section>
           <SectionHead
             kicker={t("home.latest")}
             action={
-              <Link href="/blog" className="label text-[11px] no-underline hover:text-teal">
+              <Link
+                href="/blog"
+                className="label text-[11px] no-underline hover:text-teal"
+              >
                 {t("home.allPosts")} →
               </Link>
             }

@@ -6,7 +6,6 @@
   },
   "nav": {
     "home": "首页",
-    "projects": "项目",
     "blog": "博客",
     "about": "关于",
     "language": "语言"
@@ -17,22 +16,10 @@
     "headlineAccent": "实时响应",
     "headlineEnd": "的移动应用",
     "lede": "自 2017 年起从事 Flutter、Android 与 iOS 开发，专注于「延迟即需求」的领域：实时赔率、受监管的推送、长时间保持的数据流。",
-    "ctaProjects": "查看项目",
     "ctaBlog": "阅读博客",
-    "featured": "精选项目",
     "latest": "近期文章",
-    "allProjects": "全部项目",
     "allPosts": "全部文章",
     "ctaAbout": "关于我"
-  },
-  "projects": {
-    "title": "项目",
-    "lede": "每个项目都配有真实界面的短录屏，以及关键指标的前后对比。",
-    "inProduction": "已上线",
-    "caseStudy": "查看案例",
-    "next": "下一个项目",
-    "measures": "关键指标",
-    "present": "至今"
   },
   "blog": {
     "title": "博客",

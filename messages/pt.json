@@ -6,7 +6,6 @@
   },
   "nav": {
     "home": "Início",
-    "projects": "Projetos",
     "blog": "Blog",
     "about": "Sobre",
     "language": "Idioma"
@@ -17,22 +16,10 @@
     "headlineAccent": "tempo real",
     "headlineEnd": "",
     "lede": "Desde 2017 em Flutter, Android e iOS, em domínios onde latência é requisito e não métrica de vaidade: odds ao vivo, push regulado, streams abertas por horas.",
-    "ctaProjects": "Ver projetos",
     "ctaBlog": "Ler o blog",
-    "featured": "Projeto em destaque",
     "latest": "Escrita recente",
-    "allProjects": "Todos os projetos",
     "allPosts": "Todos os artigos",
     "ctaAbout": "Sobre mim"
-  },
-  "projects": {
-    "title": "Projetos",
-    "lede": "Cada projeto com vídeo curto de tela real e as medidas que importam — antes e depois.",
-    "inProduction": "Em produção",
-    "caseStudy": "Estudo de caso",
-    "next": "Próximo projeto",
-    "measures": "Medidas",
-    "present": "hoje"
   },
   "blog": {
     "title": "Blog",

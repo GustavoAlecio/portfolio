@@ -1,5 +1,5 @@
 import { getLocale, getTranslations } from "next-intl/server";
-import { getPosts, getProjects } from "@/content/repository";
+import { getPosts } from "@/content/repository";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { LangSwitcher } from "./lang-switcher";
@@ -14,10 +14,7 @@ export async function SiteHeader() {
 
   // índice vazio no nav passa impressão de obra inacabada; o item liga sozinho
   // quando existir conteúdo publicado
-  const [projects, posts] = await Promise.all([
-    getProjects(locale as Locale),
-    getPosts(locale as Locale),
-  ]);
+  const posts = await getPosts(locale as Locale);
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-bg/85 backdrop-blur-[8px]">
@@ -42,13 +39,6 @@ export async function SiteHeader() {
         <div className="flex flex-wrap items-center gap-[14px]">
           <nav>
             <ul className="flex list-none gap-1 p-0">
-              {projects.length ? (
-                <li>
-                  <Link href="/projetos" className={navItem}>
-                    {t("nav.projects")}
-                  </Link>
-                </li>
-              ) : null}
               {posts.length ? (
                 <li>
                   <Link href="/blog" className={navItem}>

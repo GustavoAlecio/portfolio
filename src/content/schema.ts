@@ -34,12 +34,6 @@ export const mediaItemSchema = z.discriminatedUnion("kind", [
 ]);
 export type MediaItem = z.infer<typeof mediaItemSchema>;
 
-export const measureSchema = z.object({
-  label: z.string(),
-  value: z.string(),
-  before: z.string().optional(),
-});
-
 export const postFrontmatterSchema = z.object({
   title: z.string(),
   summary: z.string(),
@@ -56,29 +50,6 @@ export const postFrontmatterSchema = z.object({
   draft: z.boolean().default(false),
 });
 export type PostFrontmatter = z.infer<typeof postFrontmatterSchema>;
-
-export const projectFrontmatterSchema = z.object({
-  title: z.string(),
-  summary: z.string(),
-  role: z.string(),
-  period: z.object({ from: z.string(), to: z.string().optional() }),
-  status: z.enum(["production", "archived", "internal"]),
-  stack: z.array(z.string()).default([]),
-  domain: z.string(),
-  measures: z.array(measureSchema).default([]),
-  media: z.array(mediaItemSchema).default([]),
-  links: z
-    .object({
-      repo: z.string().optional(),
-      live: z.string().optional(),
-      store: z.string().optional(),
-    })
-    .optional(),
-  featured: z.boolean().default(false),
-  order: z.number().default(999),
-  draft: z.boolean().default(false),
-});
-export type ProjectFrontmatter = z.infer<typeof projectFrontmatterSchema>;
 
 export type Doc<T> = {
   slug: string;
@@ -125,5 +96,4 @@ export const aboutFrontmatterSchema = z.object({
 export type AboutFrontmatter = z.infer<typeof aboutFrontmatterSchema>;
 
 export type Post = Doc<PostFrontmatter>;
-export type Project = Doc<ProjectFrontmatter>;
 export type About = Doc<AboutFrontmatter>;

@@ -6,7 +6,6 @@
   },
   "nav": {
     "home": "Home",
-    "projects": "Work",
     "blog": "Blog",
     "about": "About",
     "language": "Language"
@@ -17,22 +16,10 @@
     "headlineAccent": "real time",
     "headlineEnd": "",
     "lede": "Since 2017 across Flutter, Android and iOS, in domains where latency is a requirement rather than a vanity metric: live odds, regulated push, streams held open for hours.",
-    "ctaProjects": "See the work",
     "ctaBlog": "Read the blog",
-    "featured": "Featured project",
     "latest": "Recent writing",
-    "allProjects": "All projects",
     "allPosts": "All articles",
     "ctaAbout": "About me"
-  },
-  "projects": {
-    "title": "Work",
-    "lede": "Every project with a short screen recording and the measures that matter — before and after.",
-    "inProduction": "In production",
-    "caseStudy": "Case study",
-    "next": "Next project",
-    "measures": "Measures",
-    "present": "present"
   },
   "blog": {
     "title": "Blog",

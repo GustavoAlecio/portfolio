@@ -5,14 +5,11 @@ import { fallbackChain, locales, type Locale } from "@/i18n/routing";
 import {
   aboutFrontmatterSchema,
   postFrontmatterSchema,
-  projectFrontmatterSchema,
   type About,
   type AboutFrontmatter,
   type Doc,
   type Post,
   type PostFrontmatter,
-  type Project,
-  type ProjectFrontmatter,
 } from "./schema";
 import type { ZodType } from "zod";
 
@@ -136,43 +133,25 @@ export async function getRelatedPosts(
   const posts = (await getPosts(locale)).filter((p) => p.slug !== slug);
   return posts
     .sort((a, b) => {
-      const same = Number(b.data.category === category) - Number(a.data.category === category);
-      return same !== 0 ? same : b.data.publishedAt.localeCompare(a.data.publishedAt);
+      const same =
+        Number(b.data.category === category) -
+        Number(a.data.category === category);
+      return same !== 0
+        ? same
+        : b.data.publishedAt.localeCompare(a.data.publishedAt);
     })
     .slice(0, limit);
 }
 
-export async function getProjects(locale: Locale): Promise<Project[]> {
-  const slugs = await allSlugs("projects");
-  const docs = await Promise.all(
-    slugs.map((slug) =>
-      readWithFallback("projects", locale, slug, projectFrontmatterSchema),
-    ),
-  );
-  return (docs.filter(Boolean) as Project[])
-    .filter((p) => !p.data.draft)
-    .sort((a, b) => a.data.order - b.data.order);
-}
-
-export async function getProject(
-  locale: Locale,
-  slug: string,
-): Promise<Project | null> {
-  return readWithFallback<ProjectFrontmatter>(
-    "projects",
-    locale,
-    slug,
-    projectFrontmatterSchema,
-  );
-}
-
 /** Locales em que o documento existe de fato — alimenta hreflang. */
 export async function getAvailableLocales(
-  kind: "posts" | "projects",
+  kind: "posts",
   slug: string,
 ): Promise<Locale[]> {
   const found = await Promise.all(
-    locales.map(async (l) => ((await listSlugs(kind, l)).includes(slug) ? l : null)),
+    locales.map(async (l) =>
+      (await listSlugs(kind, l)).includes(slug) ? l : null,
+    ),
   );
   return found.filter(Boolean) as Locale[];
 }
@@ -193,7 +172,4 @@ export async function getAbout(locale: Locale): Promise<About | null> {
 
 export async function getPostSlugs() {
   return allSlugs("posts");
-}
-export async function getProjectSlugs() {
-  return allSlugs("projects");
 }
