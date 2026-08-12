@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { SiteFooter } from "@/design-system/patterns/site-footer";
 import { SiteHeader } from "@/design-system/patterns/site-header";
 import { htmlLang, locales, routing, type Locale } from "@/i18n/routing";
+import { siteUrl } from "@/lib/format";
 import "../globals.css";
 
 const inter = Inter({
@@ -45,10 +46,9 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: "site" });
   return {
     // hreflang relativo é ignorado pelo Google: precisa de URL absoluta, e é o
-    // metadataBase que promove os caminhos abaixo. Definir SITE_URL no deploy.
-    metadataBase: new URL(
-      process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
-    ),
+    // metadataBase que promove os caminhos abaixo. Domínio próprio vem de
+    // SITE_URL; sem ele, a Vercel já expõe o domínio de produção.
+    metadataBase: new URL(siteUrl()),
     title: { default: t("name"), template: `%s · ${t("name")}` },
     description: t("description"),
     alternates: {

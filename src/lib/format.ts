@@ -1,4 +1,17 @@
 /**
+ * Origem pública do site, em ordem de precedência: domínio próprio, domínio de
+ * produção da Vercel, localhost. Sem uma origem absoluta o Google descarta o
+ * hreflang, e o trabalho de i18n não conta para busca.
+ */
+export function siteUrl() {
+  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
+  return "http://localhost:3000";
+}
+
+/**
  * `new Date("2026-07-22")` é meia-noite UTC. Formatado em America/Sao_Paulo
  * (UTC-3) isso vira 21/07 — off-by-one em toda data do site. Ancorar ao
  * meio-dia UTC e formatar em UTC resolve para qualquer fuso.
