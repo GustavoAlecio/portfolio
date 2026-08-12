@@ -186,7 +186,11 @@ export default async function AboutPage({
               <ButtonAnchor href={`mailto:${data.email}`} variant="primary">
                 {t("about.email")}
               </ButtonAnchor>
-              <ButtonAnchor href="/cv.pdf">{t("about.cv")}</ButtonAnchor>
+              {data.cv ? (
+                <ButtonAnchor href={data.cv} download>
+                  {t("about.cv")}
+                </ButtonAnchor>
+              ) : null}
             </div>
           </div>
         </div>

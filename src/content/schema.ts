@@ -121,6 +121,8 @@ export const aboutFrontmatterSchema = z.object({
   ),
   contact: z.string(),
   email: z.string(),
+  /** Currículo do locale. Ausente = botão não aparece, em vez de link quebrado. */
+  cv: z.string().optional(),
 });
 export type AboutFrontmatter = z.infer<typeof aboutFrontmatterSchema>;
 
