@@ -3,7 +3,7 @@ lede: "Mobile engineer specialized in Flutter since 2017. I lead a team without 
 headline: Senior Flutter Engineer · Tech Lead · Mobile Engineering Manager
 location: Cuiabá, Brazil
 email: gustavo.alecio2@live.com
-contact: "Open to senior roles in Flutter, mobile architecture and mobile engineering management — international teams, remote, or relocation. Also available as an independent contractor (Brazilian PJ/CNPJ), working across Americas, Europe and Asia time zones."
+contact: "Write to me if you have a Flutter app stuck on something hard: native that won't fit, releases that turned into a ritual, architecture that stopped the team. I work as a contractor or as a senior hire, and teams outside Brazil are no problem for me."
 links:
   - label: GitHub
     href: "https://github.com/GustavoAlecio"
@@ -64,48 +64,49 @@ timeline:
     stack: [Flutter, Django, PostgreSQL]
 ---
 
-I've been building mobile apps since 2017, almost always in Flutter, and what I've
-done in that time ranges from a cooperative's app I maintained alone to a live
-sports scoreboard with Live Activities written in Swift. Along the way: greenhouse
-automation controlled from a phone, investment journeys in a regulated environment,
-an app broken into thirteen modular packages, manual delivery turned into an
-automated process, and a move from senior developer to mobile engineering manager in
-five months. In parallel, I ship complete products through my own consultancy — app,
-API, database and infrastructure.
+I've been building mobile apps since 2017, almost always in Flutter. In that time
+I've done a bit of everything: a cooperative's app I maintained on my own, greenhouse
+automation controlled from a phone, investment journeys in a regulated environment
+and, these days, a live sports scoreboard with Live Activities written in Swift. I
+also broke an app into thirteen packages, replaced manual delivery with an automated
+process, and went from senior developer to mobile engineering manager in five months.
+Alongside that I run a consultancy, where I deliver the whole product: app, API,
+database, infrastructure.
 
-I started in 2017 at Fundação Uniselva, and I started alone: Recoopsol, a
-cooperative's e-commerce platform, was mine from the Flutter app down to the Django
-server with PostgreSQL. There was nobody to review my code — terrible for quality,
+I started in 2017 at Fundação Uniselva, on my own. Recoopsol, a cooperative's
+e-commerce platform, was mine from the Flutter app down to the Django server with
+PostgreSQL. There was nobody to review my code. That's terrible for quality and
 excellent for learning consequences. In 2021 I added Osiris Agtech, where the problem
 was more physical: hydroponics automation, with irrigation, nutrient solution and
 sensors controlled from a phone. That's where I used MobX and Clean Architecture for
-the first time in a real app, and worked on what sat behind it — data modeling with
-GraphQL, Prisma and PostgreSQL. Five years learning that an app is the visible tip of
-a system.
+the first time in a real app, and also worked on what sat behind it, modeling data
+with GraphQL, Prisma and PostgreSQL.
 
 In 2022 I joined Genial Investimentos, first through TIVIT and then through Squad
-Premium — two and a half years on a high-traffic investment app with very little room
-for error. I worked on credit cards, bank slips, insurance products and CMS-driven
-content, with Cubit for state and EventBus for communication between features that
-didn't know about each other. That's where I learned to build animations and
-transitions that survive production, to design components thinking about whoever
-reuses them, and to operate under financial regulation with design, server and QA in
-the same cycle. It's also where it became clear that I wanted to decide architecture,
-not just implement the one already in place.
+Premium. It was two and a half years on a high-traffic investment app with very little
+room for error. I worked on credit cards, bank slips, insurance products and
+CMS-driven content, using Cubit for state and EventBus to get features that didn't
+know about each other talking. I learned there how to build animations and transitions
+that survive production, and how to design a component thinking about whoever reuses
+it. It's also where it became clear I wanted to decide architecture instead of just
+implementing the one already in place.
 
-I joined R10 Score in October 2024 as a senior developer; a month later I was leading
-the team, and five months after that I was accountable for mobile engineering. What
-got me there was taking on the native side: in Swift, with ActivityKit and WidgetKit,
-I wrote the chronometer that follows the match phase, the countdown before kickoff,
-the league table shifting position live, and the penalty shootout updating on the lock
-screen kick by kick — with the Flutter app on the other side, talking over Platform
-Channels. On Android my role is integration: Gradle, FCM, Billing, platform channels.
-Then came the things that never show up on screen and hold up everything else —
-thirteen packages with declared dependency boundaries, notifications isolated into
-their own package, in-app purchases with StoreKit, gRPC and WebSocket for data that
-has to arrive now, Crashlytics driving actual fixes, and releases that stopped being a
-manual ritual. In the same period, in my consultancy: a loss-control system with a
-Flutter mobile app and a React web app, a multi-tenant platform in NestJS with Prisma,
-an odds pipeline with EV calculation, Terraform and CI. I write here about what
-survived production and what I'd do differently — half of what I know came from people
-who bothered to write it down.
+I joined R10 Score in October 2024 as a senior developer. A month later I was leading
+the team, five months after that I was accountable for mobile engineering. What got me
+there was taking on the native side. In Swift, with ActivityKit and WidgetKit, I wrote
+the chronometer that follows the match phase, the countdown before kickoff, the league
+table shifting position live and the penalty shootout updating on the lock screen kick
+by kick, with the Flutter app on the other side talking over Platform Channels. On
+Android my role is integration: Gradle, FCM, Billing, platform channels.
+
+Then came the things that never show up on screen. Thirteen packages with declared
+dependency boundaries. Notifications isolated into their own package. In-app purchases
+with StoreKit. gRPC and WebSocket for data that has to arrive now. Crashlytics driving
+actual fixes. And releases that stopped being a manual ritual.
+
+In the consultancy, over the same period: a loss-control system with a Flutter mobile
+app and a React web app, a multi-tenant platform in NestJS with Prisma, an odds
+pipeline with EV calculation, Terraform and CI.
+
+I write here about what survived production and what I'd do differently. Half of what
+I know came from people who bothered to write it down.
