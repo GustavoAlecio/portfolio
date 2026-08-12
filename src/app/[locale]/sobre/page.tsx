@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Mdx } from "@/content/mdx";
@@ -46,12 +47,15 @@ export default async function AboutPage({
     <Container className="py-[62px]">
       <div className="grid items-start gap-11 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="overflow-hidden rounded-card border border-line bg-surface shadow-e2 lg:sticky lg:top-5">
-          <div className="grid aspect-4/5 place-items-center bg-recess bg-[radial-gradient(70%_60%_at_30%_20%,rgba(14,148,128,0.2),transparent_70%),radial-gradient(60%_60%_at_80%_85%,rgba(124,58,237,0.18),transparent_72%)]">
-            <span className="label px-[18px] text-center text-[10.5px] leading-[1.7]">
-              {t("about.portraitSlot")}
-              <br />
-              4:5 · webp
-            </span>
+          <div className="relative aspect-4/5 bg-recess">
+            <Image
+              src="/media/gustavo.jpg"
+              alt={t("site.name")}
+              fill
+              priority
+              sizes="(max-width: 1024px) 100vw, 280px"
+              className="object-cover"
+            />
           </div>
           <div className="grid gap-[9px] border-t border-line px-[17px] py-[15px]">
             <b className="text-[15.5px] font-semibold tracking-[-0.01em]">
