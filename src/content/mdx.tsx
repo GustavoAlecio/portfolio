@@ -1,3 +1,4 @@
+import GithubSlugger from "github-slugger";
 import { MDXRemote } from "next-mdx-remote/rsc";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypePrettyCode from "rehype-pretty-code";
@@ -31,25 +32,34 @@ export function Mdx({ source }: { source: string }) {
   );
 }
 
-/** Sumário: extrai os h2 do MDX sem renderizar duas vezes. */
+/**
+ * Sumário: extrai os h2 do MDX sem renderizar duas vezes.
+ *
+ * O `id` vem do mesmo github-slugger que o rehype-slug usa no pipeline. Calcular
+ * o slug à mão aqui produz âncora que não existe na página: o slugger preserva
+ * acento, e qualquer normalização diferente quebra o link em silêncio.
+ */
 export function extractHeadings(body: string) {
+  const slugger = new GithubSlugger();
   const headings: { id: string; text: string }[] = [];
-  const lines = body.split("\n");
   let inFence = false;
-  for (const line of lines) {
+
+  for (const line of body.split("\n")) {
     if (line.startsWith("```")) inFence = !inFence;
     if (inFence) continue;
+
     const match = /^##\s+(.+)$/.exec(line);
     if (!match) continue;
-    const text = match[1].trim();
-    const id = text
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")
-      .replace(/[^\p{L}\p{N}\s-]/gu, "")
+
+    // o slug é gerado sobre o texto renderizado, sem a sintaxe inline
+    const text = match[1]
       .trim()
-      .replace(/\s+/g, "-");
-    headings.push({ id, text });
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/\*\*([^*]+)\*\*/g, "$1")
+      .replace(/\*([^*]+)\*/g, "$1")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1");
+
+    headings.push({ id: slugger.slug(text), text });
   }
   return headings;
 }

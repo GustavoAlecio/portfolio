@@ -373,6 +373,14 @@
     font-family: var(--font-mono);
     display: grid;
   }
+  /* a margem vive no wrapper: no `pre`, o botão absoluto cairia dentro dela,
+     fora do bloco escuro e ilegível sobre o fundo claro */
+  .prose .code-block {
+    margin: 22px 0;
+  }
+  .prose .code-block > pre {
+    margin: 0;
+  }
   .prose figure {
     margin: 24px 0;
     display: grid;
